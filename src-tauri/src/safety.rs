@@ -119,7 +119,7 @@ pub fn delete_branch_preview(repo_path: &Path, branch: &str) -> Result<SafetyPre
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sandbox::SandboxRepo;
+    use crate::sandbox::{git, SandboxRepo};
 
     #[test]
     fn previews_dirty_worktree_delete() {
@@ -144,5 +144,29 @@ mod tests {
             .blockers
             .iter()
             .any(|blocker| blocker.contains("checked out by worktree")));
+    }
+
+    #[test]
+    fn marks_merged_unattached_branch_as_medium_risk() {
+        let sandbox = SandboxRepo::create();
+        git(&sandbox.root, &["branch", "cleanup/merged"]);
+
+        let preview = delete_branch_preview(&sandbox.root, "cleanup/merged").unwrap();
+
+        assert_eq!(preview.risk_level, "medium");
+        assert!(preview.blockers.is_empty());
+        assert!(preview
+            .facts
+            .iter()
+            .any(|fact| fact == "Merged to default: true"));
+    }
+
+    #[test]
+    fn reports_missing_branch_preview_error() {
+        let sandbox = SandboxRepo::create();
+
+        let error = delete_branch_preview(&sandbox.root, "missing/branch").unwrap_err();
+
+        assert!(error.contains("Branch not found"));
     }
 }

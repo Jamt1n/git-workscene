@@ -402,7 +402,9 @@ fn git_ok(path: &Path, args: &[&str]) -> bool {
 
 fn worktree_command_root(worktree_path: &Path) -> Result<PathBuf, String> {
     let current = discover_repository(worktree_path)?;
-    let target = worktree_path.canonicalize().map_err(|error| error.to_string())?;
+    let target = worktree_path
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
     let worktrees = scan_worktrees(&current)?;
 
     Ok(worktrees
@@ -483,7 +485,7 @@ impl PartialWorktree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sandbox::SandboxRepo;
+    use crate::sandbox::{git, SandboxRepo};
 
     #[test]
     fn scans_repository_worktree_branch_and_dirty_state() {
@@ -524,5 +526,73 @@ mod tests {
 
         let branches = run_git(&sandbox.root, &["branch", "--format=%(refname:short)"]).unwrap();
         assert!(!branches.lines().any(|branch| branch == "feature/demo"));
+    }
+
+    #[test]
+    fn rejects_non_git_directories() {
+        let temp = tempfile::tempdir().unwrap();
+
+        let error = discover_repository(temp.path()).unwrap_err();
+
+        assert!(error.contains("rev-parse"));
+    }
+
+    #[test]
+    fn scans_stashes() {
+        let sandbox = SandboxRepo::create();
+        git(
+            &sandbox.worktree,
+            &["stash", "push", "-u", "-m", "sandbox stash"],
+        );
+
+        let snapshot = scan_repository(&RepositoryRecord::from_path(&sandbox.root)).unwrap();
+
+        assert!(snapshot
+            .stashes
+            .iter()
+            .any(|stash| stash.message.contains("sandbox stash")));
+    }
+
+    #[test]
+    fn creates_worktree_with_new_branch() {
+        let sandbox = SandboxRepo::create();
+        let task_worktree = sandbox.root.parent().unwrap().join("repo-task");
+
+        let result = create_worktree(&sandbox.root, "feature/task", &task_worktree, true).unwrap();
+
+        assert!(result.ok);
+        assert!(task_worktree.exists());
+        let branches = run_git(&sandbox.root, &["branch", "--format=%(refname:short)"]).unwrap();
+        assert!(branches.lines().any(|branch| branch == "feature/task"));
+    }
+
+    #[test]
+    fn counts_dirty_status_buckets() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("repo");
+        std::fs::create_dir_all(&root).unwrap();
+        git(&root, &["init", "-b", "main"]);
+        git(&root, &["config", "user.email", "sandbox@example.test"]);
+        git(&root, &["config", "user.name", "Sandbox"]);
+        for file in ["modified.txt", "deleted.txt", "renamed.txt"] {
+            std::fs::write(root.join(file), "base\n").unwrap();
+        }
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-m", "base"]);
+
+        std::fs::write(root.join("modified.txt"), "changed\n").unwrap();
+        std::fs::write(root.join("added.txt"), "added\n").unwrap();
+        git(&root, &["add", "added.txt"]);
+        std::fs::remove_file(root.join("deleted.txt")).unwrap();
+        git(&root, &["mv", "renamed.txt", "renamed-new.txt"]);
+        std::fs::write(root.join("untracked.txt"), "untracked\n").unwrap();
+
+        let summary = dirty_summary(&root).unwrap();
+
+        assert_eq!(summary.modified, 1);
+        assert_eq!(summary.added, 1);
+        assert_eq!(summary.deleted, 1);
+        assert_eq!(summary.renamed, 1);
+        assert_eq!(summary.untracked, 1);
     }
 }

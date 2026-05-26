@@ -1,3 +1,5 @@
+/// <reference types="vitest" />
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -6,6 +8,10 @@ const host = process.env.TAURI_DEV_HOST;
 export default defineConfig({
   plugins: [react()],
   clearScreen: false,
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+  },
   server: {
     port: 1420,
     strictPort: true,

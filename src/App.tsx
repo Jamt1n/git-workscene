@@ -69,21 +69,25 @@ export default function App() {
   }, [refresh]);
 
   async function addRepository() {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-      title: "Add Git repository",
-    });
-    if (typeof selected !== "string") return;
-    await run("add repository", async () => {
-      const repo = await api.addRepository(selected);
-      return {
-        ok: true,
-        summary: `Added ${repo.displayName}`,
-        command: `add_repository ${repo.path}`,
-        changedPaths: [repo.path],
-      };
-    });
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Add Git repository",
+      });
+      if (typeof selected !== "string") return;
+      await run("add repository", async () => {
+        const repo = await api.addRepository(selected);
+        return {
+          ok: true,
+          summary: `Added ${repo.displayName}`,
+          command: `add_repository ${repo.path}`,
+          changedPaths: [repo.path],
+        };
+      });
+    } catch (reason) {
+      pushFailure("open folder dialog", reason);
+    }
   }
 
   async function run(operation: string, action: () => Promise<CommandResult>) {

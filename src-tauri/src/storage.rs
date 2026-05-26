@@ -141,5 +141,9 @@ mod tests {
 
         storage.archive_repository(&saved.path).unwrap();
         assert!(storage.list_repositories().unwrap().is_empty());
+
+        let restored = storage.upsert_repository(&repo_dir).unwrap();
+        assert!(!restored.archived);
+        assert_eq!(storage.list_repositories().unwrap().len(), 1);
     }
 }
