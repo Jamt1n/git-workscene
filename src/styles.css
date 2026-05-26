@@ -220,6 +220,19 @@ input {
   cursor: grab;
 }
 
+.canvas-shell .react-flow__node {
+  cursor: pointer;
+}
+
+.canvas-shell .react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.canvas-shell .git-edge .react-flow__edge-path {
+  filter: drop-shadow(0 0 4px rgba(245, 241, 232, 0.18));
+}
+
 .canvas-shell .react-flow__controls {
   overflow: hidden;
   border: 1px solid rgba(245, 241, 232, 0.12);
@@ -276,6 +289,7 @@ input {
 }
 
 .git-node {
+  position: relative;
   width: 248px;
   min-height: 104px;
   padding: 12px;
@@ -283,6 +297,42 @@ input {
   border-radius: 8px;
   background: rgba(28, 26, 23, 0.96);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+
+.node-handle {
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(245, 241, 232, 0.48);
+  background: #151412;
+  pointer-events: none;
+}
+
+.node-handle-target {
+  left: -6px;
+}
+
+.node-handle-source {
+  right: -6px;
+}
+
+.git-node-repository .node-handle {
+  border-color: rgba(243, 179, 91, 0.8);
+}
+
+.git-node-worktree .node-handle {
+  border-color: rgba(99, 214, 181, 0.82);
+}
+
+.git-node-branch .node-handle {
+  border-color: rgba(226, 93, 122, 0.74);
+}
+
+.git-node-remote .node-handle {
+  border-color: rgba(107, 180, 255, 0.78);
+}
+
+.git-node-stash .node-handle {
+  border-color: rgba(243, 179, 91, 0.72);
 }
 
 .git-node.is-selected {
@@ -304,6 +354,10 @@ input {
 
 .git-node-remote {
   border-color: rgba(107, 180, 255, 0.38);
+}
+
+.git-node-stash {
+  border-color: rgba(243, 179, 91, 0.38);
 }
 
 .node-kind {

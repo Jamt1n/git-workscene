@@ -1,6 +1,8 @@
 import {
   Background,
   Controls,
+  Handle,
+  Position,
   ReactFlow,
   type NodeProps,
   useEdgesState,
@@ -37,7 +39,8 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        nodesDraggable
+        nodesDraggable={false}
+        nodesConnectable={false}
         fitView
         fitViewOptions={{ nodes: initialFitNodes, padding: 0.22, maxZoom: 0.95 }}
         minZoom={0.25}
@@ -48,7 +51,7 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
         onPaneClick={() => onSelect(null)}
       >
         <Background color="rgba(245,241,232,0.12)" gap={42} />
-        <Controls position="bottom-left" />
+        <Controls position="bottom-left" showInteractive={false} />
       </ReactFlow>
       <div className="canvas-status">
         {selectedId ? "Node selected" : "Canvas ready"}
@@ -61,6 +64,12 @@ function GitNodeCard({ data, selected }: NodeProps<GitFlowNode>) {
   const node = data as GitNodeData;
   return (
     <div className={`git-node git-node-${node.kind} ${selected ? "is-selected" : ""}`}>
+      <Handle
+        className="node-handle node-handle-target"
+        type="target"
+        position={Position.Left}
+        isConnectable={false}
+      />
       <div className="node-kind">{node.kind}</div>
       <div className="node-title">{node.title}</div>
       <div className="node-subtitle">{node.subtitle}</div>
@@ -69,6 +78,12 @@ function GitNodeCard({ data, selected }: NodeProps<GitFlowNode>) {
           <span key={badge}>{badge}</span>
         ))}
       </div>
+      <Handle
+        className="node-handle node-handle-source"
+        type="source"
+        position={Position.Right}
+        isConnectable={false}
+      />
     </div>
   );
 }

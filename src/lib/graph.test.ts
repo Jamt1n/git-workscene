@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Position } from "@xyflow/react";
 import { buildGraph } from "./graph";
 import { dirtyTotal } from "./types";
 import { snapshotFixture } from "../test/fixtures";
@@ -27,6 +28,26 @@ describe("buildGraph", () => {
     const worktreeEdge = graph.edges.find((edge) => edge.target.startsWith("worktree:"));
 
     expect(worktreeEdge?.animated).toBe(true);
+  });
+
+  it("locks nodes into the generated layout", () => {
+    const graph = buildGraph([snapshotFixture()]);
+
+    expect(graph.nodes.every((node) => node.draggable === false)).toBe(true);
+    expect(graph.nodes.every((node) => node.sourcePosition === Position.Right)).toBe(true);
+    expect(graph.nodes.every((node) => node.targetPosition === Position.Left)).toBe(true);
+  });
+
+  it("marks relation edges for visible connection styling", () => {
+    const graph = buildGraph([snapshotFixture()]);
+
+    expect(graph.edges.map((edge) => edge.className)).toEqual([
+      "git-edge git-edge-worktree",
+      "git-edge git-edge-checked-out",
+      "git-edge git-edge-upstream",
+      "git-edge git-edge-stash",
+    ]);
+    expect(graph.edges.every((edge) => edge.markerEnd)).toBe(true);
   });
 
   it("shows repository diagnostics as attention badges", () => {
