@@ -1,5 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { CanvasView } from "./components/CanvasView";
 import { Inspector } from "./components/Inspector";
 import { RepoSidebar } from "./components/RepoSidebar";
@@ -15,6 +15,8 @@ export default function App() {
   const [branchMode, setBranchMode] = useState<BranchMode>("all");
   const [showStashes, setShowStashes] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const refreshRequestId = useRef(0);
   const [error, setError] = useState<string | null>(null);
 
   const selectedSnapshot = useMemo(
@@ -35,16 +37,26 @@ export default function App() {
   }, []);
 
   const refresh = useCallback(async () => {
+    const requestId = refreshRequestId.current + 1;
+    refreshRequestId.current = requestId;
     setLoading(true);
     setError(null);
     try {
-      setSnapshots(await api.scanAllRepositories());
+      const nextSnapshots = await api.scanAllRepositories();
+      if (requestId !== refreshRequestId.current) return;
+      startTransition(() => {
+        setSnapshots(nextSnapshots);
+      });
     } catch (reason) {
-      pushFailure(reason);
+      if (requestId === refreshRequestId.current) {
+        pushFailure(reason);
+      }
     } finally {
-      setLoading(false);
+      if (requestId === refreshRequestId.current) {
+        setLoading(false);
+      }
     }
-  }, [pushFailure]);
+  }, [pushFailure, startTransition]);
 
   useEffect(() => {
     refresh();
@@ -145,7 +157,7 @@ export default function App() {
     >
       <RepoSidebar
         snapshots={snapshots}
-        loading={loading}
+        loading={loading || isPending}
         selectedRepoPath={selectedSnapshot?.repo.path ?? null}
         onAddRepository={addRepository}
         onRefresh={refresh}

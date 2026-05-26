@@ -78,6 +78,11 @@ export function buildGraph(
         ? sortByCreatedDesc(snapshot.localBranches, (branch) => branch.createdAt)
         : visibleLocalBranches(snapshot.localBranches, worktrees);
     const remoteBranches = visibleRemoteBranches(snapshot.remoteBranches, localBranches);
+    const worktreeByBranch = new Map(
+      worktrees
+        .filter((worktree) => worktree.branch)
+        .map((worktree) => [worktree.branch, worktree] as const),
+    );
     const hiddenBranchCount = snapshot.localBranches.length - localBranches.length;
     const baseY = repoIndex * 420;
     const repoId = repoNodeId(snapshot.repo.path);
@@ -126,9 +131,7 @@ export function buildGraph(
       const nodeId = branchNodeId(snapshot.repo.path, branch.name);
       nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, false));
 
-      const worktree = worktrees.find(
-        (candidate) => candidate.branch === branch.name,
-      );
+      const worktree = worktreeByBranch.get(branch.name);
       if (worktree) {
         edges.push({
           id: `${worktreeNodeId(worktree.path)}->${nodeId}`,

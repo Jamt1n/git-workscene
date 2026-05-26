@@ -8,7 +8,7 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { GitFlowNode, GitGraph, GitNodeData } from "../lib/graph";
 
 interface CanvasViewProps {
@@ -24,7 +24,14 @@ const nodeTypes = {
 export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
-  const initialFitNodes = graph.nodes.map((node) => ({ id: node.id }));
+  const fitViewNodes = useMemo(
+    () => graph.nodes.map((node) => ({ id: node.id })),
+    [graph.nodes],
+  );
+  const fitViewOptions = useMemo(
+    () => ({ nodes: fitViewNodes, padding: 0.22, maxZoom: 0.95 }),
+    [fitViewNodes],
+  );
 
   useEffect(() => {
     setNodes(graph.nodes);
@@ -40,7 +47,7 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
         nodesDraggable={false}
         nodesConnectable={false}
         fitView
-        fitViewOptions={{ nodes: initialFitNodes, padding: 0.22, maxZoom: 0.95 }}
+        fitViewOptions={fitViewOptions}
         minZoom={0.25}
         maxZoom={1.8}
         onNodesChange={onNodesChange}

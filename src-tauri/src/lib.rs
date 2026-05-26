@@ -41,22 +41,32 @@ fn remove_repository(path: String, state: State<'_, AppState>) -> Result<(), Str
 }
 
 #[tauri::command]
-fn scan_repository(path: String) -> Result<RepositorySnapshot, String> {
-    let root = git::discover_repository(&PathBuf::from(path))?;
-    let repo = RepositoryRecord::from_path(&root);
-    git::scan_repository(&repo)
+async fn scan_repository(path: String) -> Result<RepositorySnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = git::discover_repository(&PathBuf::from(path))?;
+        let repo = RepositoryRecord::from_path(&root);
+        git::scan_repository(&repo)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-fn scan_all_repositories(state: State<'_, AppState>) -> Result<Vec<RepositorySnapshot>, String> {
+async fn scan_all_repositories(
+    state: State<'_, AppState>,
+) -> Result<Vec<RepositorySnapshot>, String> {
     let repos = state.storage.list_repositories()?;
-    Ok(repos
-        .into_iter()
-        .map(|repo| match git::scan_repository(&repo) {
-            Ok(snapshot) => snapshot,
-            Err(error) => RepositorySnapshot::failed(repo, error),
-        })
-        .collect())
+    tauri::async_runtime::spawn_blocking(move || {
+        Ok(repos
+            .into_iter()
+            .map(|repo| match git::scan_repository(&repo) {
+                Ok(snapshot) => snapshot,
+                Err(error) => RepositorySnapshot::failed(repo, error),
+            })
+            .collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

@@ -74,7 +74,7 @@ pub fn scan_repository(repo: &RepositoryRecord) -> Result<RepositorySnapshot, St
     let default_branch = default_branch(&root);
     let merged = merged_branches(&root, default_branch.as_deref());
     let local_branches = scan_branches(&root, false, &merged)?;
-    let remote_branches = scan_branches(&root, true, &HashSet::new())?;
+    let remote_branches = scan_upstream_remote_branches(&root, &local_branches)?;
     let stashes = scan_stashes(&root)?;
 
     Ok(RepositorySnapshot {
@@ -305,18 +305,59 @@ fn scan_branches(
     remote: bool,
     merged: &HashSet<String>,
 ) -> Result<Vec<BranchSnapshot>, String> {
-    let refs = if remote { "refs/remotes" } else { "refs/heads" };
-    let format =
-        "%(refname)%09%(refname:short)%09%(upstream:short)%09%(worktreepath)%09%(creatordate:unix)";
-    let output = run_git(
-        repo_path,
-        &["for-each-ref", &format!("--format={format}"), refs],
-    )?;
+    let refs = vec![if remote { "refs/remotes" } else { "refs/heads" }.to_string()];
+    scan_branch_refs(repo_path, remote, merged, &refs)
+}
+
+fn scan_upstream_remote_branches(
+    repo_path: &Path,
+    local_branches: &[BranchSnapshot],
+) -> Result<Vec<BranchSnapshot>, String> {
+    let upstream_names = local_branches
+        .iter()
+        .filter_map(|branch| branch.upstream.as_ref())
+        .cloned()
+        .collect::<HashSet<_>>();
+    let mut refs = local_branches
+        .iter()
+        .filter_map(|branch| branch.upstream.as_ref())
+        .map(|upstream| format!("refs/remotes/{upstream}"))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
+    refs.sort();
+
+    if refs.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    Ok(scan_branch_refs(repo_path, true, &HashSet::new(), &refs)?
+        .into_iter()
+        .filter(|branch| upstream_names.contains(&branch.name))
+        .collect())
+}
+
+fn scan_branch_refs(
+    repo_path: &Path,
+    remote: bool,
+    merged: &HashSet<String>,
+    refs: &[String],
+) -> Result<Vec<BranchSnapshot>, String> {
+    let format = "%(refname)%1f%(refname:short)%1f%(upstream:short)%1f%(worktreepath)%1f%(creatordate:unix)%1f%(upstream:track)%1f%(objectname)%1f%(objectname:short)%1f%(contents:subject)%1f%(committerdate:relative)";
+    let mut args = vec![
+        OsString::from("for-each-ref"),
+        OsString::from(format!("--format={format}")),
+    ];
+    args.extend(
+        refs.iter()
+            .map(|ref_name| OsString::from(ref_name.as_str())),
+    );
+    let output = run_git_os(repo_path, &args)?;
     let mut branches = Vec::new();
 
     for line in output.lines().filter(|line| !line.trim().is_empty()) {
-        let parts = line.split('\t').collect::<Vec<_>>();
-        if parts.len() < 5 {
+        let parts = line.split('\x1f').collect::<Vec<_>>();
+        if parts.len() < 10 {
             continue;
         }
 
@@ -327,10 +368,7 @@ fn scan_branches(
         }
 
         let upstream = non_empty(parts[2]);
-        let (ahead, behind) = upstream
-            .as_deref()
-            .map(|upstream| ahead_behind(repo_path, &name, upstream))
-            .unwrap_or((0, 0));
+        let (ahead, behind) = parse_tracking(parts[5]);
 
         branches.push(BranchSnapshot {
             name: name.clone(),
@@ -341,7 +379,7 @@ fn scan_branches(
             behind,
             is_merged_to_default: merged.contains(&name),
             worktree_path: non_empty(parts[3]),
-            last_commit: last_commit_for_ref(repo_path, &name),
+            last_commit: commit_summary(parts[6], parts[7], parts[8], parts[9]),
             is_remote: remote,
         });
     }
@@ -403,26 +441,39 @@ fn merged_branches(repo_path: &Path, default_branch: Option<&str>) -> HashSet<St
     .unwrap_or_default()
 }
 
-fn ahead_behind(repo_path: &Path, branch: &str, upstream: &str) -> (u32, u32) {
-    let spec = format!("{branch}...{upstream}");
-    let Ok(output) = run_git(repo_path, &["rev-list", "--left-right", "--count", &spec]) else {
-        return (0, 0);
-    };
-
-    let mut parts = output.split_whitespace();
-    let ahead = parts
-        .next()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(0);
-    let behind = parts
-        .next()
-        .and_then(|value| value.parse().ok())
-        .unwrap_or(0);
-    (ahead, behind)
-}
-
 fn last_commit(path: &Path) -> Option<CommitSummary> {
     last_commit_for_ref(path, "HEAD")
+}
+
+fn commit_summary(
+    sha: &str,
+    short_sha: &str,
+    subject: &str,
+    relative_time: &str,
+) -> Option<CommitSummary> {
+    (!sha.is_empty()).then(|| CommitSummary {
+        sha: sha.to_string(),
+        short_sha: short_sha.to_string(),
+        subject: subject.to_string(),
+        relative_time: relative_time.to_string(),
+    })
+}
+
+fn parse_tracking(value: &str) -> (u32, u32) {
+    let mut ahead = 0;
+    let mut behind = 0;
+    let value = value.trim().trim_start_matches('[').trim_end_matches(']');
+
+    for part in value.split(',').map(str::trim) {
+        if let Some(count) = part.strip_prefix("ahead ") {
+            ahead = count.parse().unwrap_or(0);
+        }
+        if let Some(count) = part.strip_prefix("behind ") {
+            behind = count.parse().unwrap_or(0);
+        }
+    }
+
+    (ahead, behind)
 }
 
 fn last_commit_for_ref(path: &Path, ref_name: &str) -> Option<CommitSummary> {
@@ -615,6 +666,56 @@ mod tests {
             .find(|branch| branch.name == "feature/demo")
             .unwrap();
         assert!(branch.created_at.parse::<u64>().unwrap() > 0);
+        assert_eq!(
+            branch.last_commit.as_ref().unwrap().subject,
+            "initial commit"
+        );
+    }
+
+    #[test]
+    fn parses_branch_tracking_status() {
+        assert_eq!(parse_tracking("[ahead 3, behind 2]"), (3, 2));
+        assert_eq!(parse_tracking("[behind 7]"), (0, 7));
+        assert_eq!(parse_tracking("[ahead 5]"), (5, 0));
+        assert_eq!(parse_tracking("[gone]"), (0, 0));
+        assert_eq!(parse_tracking(""), (0, 0));
+    }
+
+    #[test]
+    fn scans_only_remote_branches_used_by_local_upstreams() {
+        let sandbox = SandboxRepo::create();
+        let remote = sandbox.root.parent().unwrap().join("origin.git");
+        std::fs::create_dir_all(&remote).unwrap();
+        git(&remote, &["init", "--bare"]);
+        git(
+            &sandbox.root,
+            &["remote", "add", "origin", remote.to_string_lossy().as_ref()],
+        );
+        git(&sandbox.root, &["push", "origin", "main"]);
+        git(&sandbox.worktree, &["push", "-u", "origin", "feature/demo"]);
+        git(
+            &sandbox.root,
+            &["update-ref", "refs/remotes/origin/unrelated", "HEAD"],
+        );
+
+        let snapshot = scan_repository(&RepositoryRecord::from_path(&sandbox.root)).unwrap();
+        let remote_names = snapshot
+            .remote_branches
+            .iter()
+            .map(|branch| branch.name.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(remote_names, vec!["origin/feature/demo"]);
+        assert_eq!(
+            snapshot
+                .local_branches
+                .iter()
+                .find(|branch| branch.name == "feature/demo")
+                .unwrap()
+                .upstream
+                .as_deref(),
+            Some("origin/feature/demo")
+        );
     }
 
     #[test]
