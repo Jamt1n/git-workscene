@@ -76,6 +76,14 @@ function repoRecord(displayName: string, path: string) {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -126,6 +134,31 @@ describe("App", () => {
 
     expect(await screen.findAllByText("dialog permission denied")).toHaveLength(1);
     expect(addRepositoriesMock).not.toHaveBeenCalled();
+  });
+
+  it("shows adding state while repository import is pending", async () => {
+    const pendingAdd = deferred<ReturnType<typeof repoRecord>[]>();
+    openMock.mockResolvedValue("/tmp/repo");
+    addRepositoriesMock.mockReturnValue(pendingAdd.promise);
+
+    render(<App />);
+
+    const addButtons = await screen.findAllByRole("button", { name: "Add repository" });
+    fireEvent.click(addButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Adding..." }).length).toBeGreaterThan(0);
+    });
+    screen.getAllByRole("button", { name: "Adding..." }).forEach((button) => {
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute("aria-busy", "true");
+    });
+
+    pendingAdd.resolve([repoRecord("repo", "/tmp/repo")]);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Add repository" }).length).toBeGreaterThan(0);
+    });
   });
 
   it("adds a dropped repository path", async () => {

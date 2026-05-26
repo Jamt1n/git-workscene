@@ -1,10 +1,11 @@
-import { Archive, FolderPlus, GitBranch, RefreshCw, Search } from "lucide-react";
+import { Archive, FolderPlus, GitBranch, LoaderCircle, RefreshCw, Search } from "lucide-react";
 import type { BranchMode } from "../lib/graph";
 import type { RepositorySnapshot } from "../lib/types";
 
 interface RepoSidebarProps {
   snapshots: RepositorySnapshot[];
   loading: boolean;
+  adding: boolean;
   selectedRepoPath: string | null;
   branchMode: BranchMode;
   showStashes: boolean;
@@ -18,6 +19,7 @@ interface RepoSidebarProps {
 export function RepoSidebar({
   snapshots,
   loading,
+  adding,
   selectedRepoPath,
   branchMode,
   showStashes,
@@ -48,9 +50,14 @@ export function RepoSidebar({
         </button>
       </header>
 
-      <button className="primary-action" onClick={onAddRepository}>
-        <FolderPlus size={16} />
-        Add repository
+      <button
+        className="primary-action"
+        onClick={onAddRepository}
+        disabled={adding}
+        aria-busy={adding}
+      >
+        {adding ? <LoaderCircle className="loading-icon" size={16} /> : <FolderPlus size={16} />}
+        {adding ? "Adding..." : "Add repository"}
       </button>
 
       <div className="search-shell">

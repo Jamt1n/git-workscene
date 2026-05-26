@@ -134,6 +134,21 @@ input {
   background: #7ee5c8;
 }
 
+.primary-action:disabled {
+  color: rgba(16, 37, 31, 0.7);
+  background: rgba(99, 214, 181, 0.62);
+}
+
+.loading-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .search-shell {
   display: flex;
   align-items: center;

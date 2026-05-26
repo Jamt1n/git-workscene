@@ -15,6 +15,7 @@ export default function App() {
   const [branchMode, setBranchMode] = useState<BranchMode>("all");
   const [showStashes, setShowStashes] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [isPending, startTransition] = useTransition();
   const refreshRequestId = useRef(0);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +99,8 @@ export default function App() {
   }
 
   async function addSelectedRepository(path: string) {
+    setAdding(true);
+    setError(null);
     try {
       const repos = await api.addRepositories(path);
       if (repos[0]) {
@@ -106,6 +109,8 @@ export default function App() {
       await refresh();
     } catch (reason) {
       pushFailure(reason);
+    } finally {
+      setAdding(false);
     }
   }
 
@@ -158,6 +163,7 @@ export default function App() {
       <RepoSidebar
         snapshots={snapshots}
         loading={loading || isPending}
+        adding={adding}
         selectedRepoPath={selectedSnapshot?.repo.path ?? null}
         onAddRepository={addRepository}
         onRefresh={refresh}
@@ -180,8 +186,13 @@ export default function App() {
             <p className="eyebrow">No repositories</p>
             <h2>Add a Git folder</h2>
             <p>Choose a repository directory or drop one anywhere on this window.</p>
-            <button className="primary-action" onClick={addRepository}>
-              Add repository
+            <button
+              className="primary-action"
+              onClick={addRepository}
+              disabled={adding}
+              aria-busy={adding}
+            >
+              {adding ? "Adding..." : "Add repository"}
             </button>
           </section>
         )}
