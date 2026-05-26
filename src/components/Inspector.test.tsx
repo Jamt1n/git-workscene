@@ -12,6 +12,7 @@ const handlers = {
   onCreateWorktree: vi.fn(),
   onPreviewDeleteWorktree: vi.fn(),
   onPreviewDeleteBranch: vi.fn(),
+  onPreviewCleanupMergedBranches: vi.fn(),
   onConfirmPreview: vi.fn(),
   onCancelPreview: vi.fn(),
 };
@@ -31,6 +32,22 @@ function selectedNode(): GitFlowNode {
       repoPath: "/tmp/repo",
       path: "/tmp/repo-feature",
       branch: "feature/demo",
+    },
+  };
+}
+
+function repositoryNode(): GitFlowNode {
+  return {
+    id: "repo:/tmp/repo",
+    type: "gitNode",
+    position: { x: 0, y: 0 },
+    data: {
+      kind: "repository",
+      title: "repo",
+      subtitle: "/tmp/repo",
+      badges: [],
+      repoPath: "/tmp/repo",
+      path: "/tmp/repo",
     },
   };
 }
@@ -59,5 +76,24 @@ describe("Inspector", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Copy branch" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("feature/demo"));
+  });
+
+  it("previews merged branch cleanup from repository actions", () => {
+    render(
+      <Inspector
+        selectedNode={repositoryNode()}
+        preview={null}
+        {...handlers}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clean master" }));
+    expect(handlers.onPreviewCleanupMergedBranches).toHaveBeenCalledWith("/tmp/repo", "master");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clean prerelease" }));
+    expect(handlers.onPreviewCleanupMergedBranches).toHaveBeenCalledWith(
+      "/tmp/repo",
+      "prerelease",
+    );
   });
 });

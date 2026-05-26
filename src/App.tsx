@@ -144,6 +144,13 @@ export default function App() {
         ),
       );
     }
+    if (
+      preview.operation === "cleanupMergedBranches" &&
+      preview.targetPath &&
+      preview.targetBranch
+    ) {
+      await run(() => api.cleanupMergedBranches(preview.targetPath!, preview.targetBranch!));
+    }
     setPreview(null);
   }
 
@@ -216,6 +223,13 @@ export default function App() {
         onPreviewDeleteBranch={async (repoPath, branch) => {
           try {
             setPreview(await api.deleteBranchPreview(repoPath, branch));
+          } catch (reason) {
+            pushFailure(reason);
+          }
+        }}
+        onPreviewCleanupMergedBranches={async (repoPath, targetBranch) => {
+          try {
+            setPreview(await api.cleanupMergedBranchesPreview(repoPath, targetBranch));
           } catch (reason) {
             pushFailure(reason);
           }

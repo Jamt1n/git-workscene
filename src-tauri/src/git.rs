@@ -8,6 +8,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::UNIX_EPOCH;
 
+pub struct MergedBranchCleanupCandidates {
+    pub root: PathBuf,
+    pub deletable: Vec<String>,
+    pub checked_out: Vec<String>,
+    pub protected: Vec<String>,
+}
+
 pub fn discover_repository(path: &Path) -> Result<PathBuf, String> {
     if !path.exists() {
         return Err(format!("Path does not exist: {}", path.to_string_lossy()));
@@ -172,6 +179,101 @@ pub fn delete_branch(repo_path: &Path, branch: &str, force: bool) -> Result<Comm
         summary: format!("Deleted branch {branch}"),
         command: git_command(&root, &args),
         changed_paths: vec![root.to_string_lossy().to_string()],
+    })
+}
+
+pub fn merged_branch_cleanup_candidates(
+    repo_path: &Path,
+    target_branch: &str,
+) -> Result<MergedBranchCleanupCandidates, String> {
+    if !matches!(target_branch, "master" | "prerelease") {
+        return Err(format!(
+            "Unsupported cleanup target branch: {target_branch}"
+        ));
+    }
+
+    let root = discover_repository(repo_path)?;
+    let target_ref = format!("refs/heads/{target_branch}");
+    run_git(&root, &["show-ref", "--verify", "--quiet", &target_ref])?;
+
+    let merged = run_git(
+        &root,
+        &[
+            "branch",
+            "--format=%(refname:short)",
+            "--merged",
+            target_branch,
+        ],
+    )?;
+    let checked_out_branches = scan_worktrees(&root)?
+        .into_iter()
+        .filter_map(|worktree| worktree.branch)
+        .collect::<HashSet<_>>();
+    let protected_names = HashSet::from([
+        "main".to_string(),
+        "master".to_string(),
+        "test".to_string(),
+        "prerelease".to_string(),
+    ]);
+    let mut deletable = Vec::new();
+    let mut checked_out = Vec::new();
+    let mut protected = Vec::new();
+
+    for branch in merged
+        .lines()
+        .map(str::trim)
+        .filter(|branch| !branch.is_empty())
+    {
+        if protected_names.contains(branch) {
+            protected.push(branch.to_string());
+        } else if checked_out_branches.contains(branch) {
+            checked_out.push(branch.to_string());
+        } else {
+            deletable.push(branch.to_string());
+        }
+    }
+
+    deletable.sort();
+    deletable.dedup();
+    checked_out.sort();
+    checked_out.dedup();
+    protected.sort();
+    protected.dedup();
+
+    Ok(MergedBranchCleanupCandidates {
+        root,
+        deletable,
+        checked_out,
+        protected,
+    })
+}
+
+pub fn cleanup_merged_branches(
+    repo_path: &Path,
+    target_branch: &str,
+) -> Result<CommandResult, String> {
+    let candidates = merged_branch_cleanup_candidates(repo_path, target_branch)?;
+    if candidates.deletable.is_empty() {
+        return Ok(CommandResult {
+            ok: true,
+            summary: format!("No local branches merged into {target_branch} to delete"),
+            command: "No branches to delete".to_string(),
+            changed_paths: Vec::new(),
+        });
+    }
+
+    let mut args = vec![OsString::from("branch"), OsString::from("-D")];
+    args.extend(candidates.deletable.iter().map(OsString::from));
+    run_git_os(&candidates.root, &args)?;
+
+    Ok(CommandResult {
+        ok: true,
+        summary: format!(
+            "Deleted {} local branches merged into {target_branch}",
+            candidates.deletable.len()
+        ),
+        command: git_command_os(&candidates.root, &args),
+        changed_paths: candidates.deletable,
     })
 }
 
@@ -550,6 +652,17 @@ fn git_command(root: &Path, args: &[&str]) -> String {
     )
 }
 
+fn git_command_os(root: &Path, args: &[OsString]) -> String {
+    format!(
+        "git -C {} {}",
+        shell_path(root),
+        args.iter()
+            .map(|arg| shell_arg(arg.to_string_lossy().as_ref()))
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+}
+
 fn shell_path(path: &Path) -> String {
     shell_arg(path.to_string_lossy().as_ref())
 }
@@ -731,6 +844,41 @@ mod tests {
 
         let branches = run_git(&sandbox.root, &["branch", "--format=%(refname:short)"]).unwrap();
         assert!(!branches.lines().any(|branch| branch == "feature/demo"));
+    }
+
+    #[test]
+    fn finds_local_branches_merged_into_cleanup_target() {
+        let sandbox = SandboxRepo::create();
+        git(&sandbox.root, &["branch", "master"]);
+        git(&sandbox.root, &["branch", "cleanup/merged"]);
+
+        let candidates = merged_branch_cleanup_candidates(&sandbox.root, "master").unwrap();
+
+        assert_eq!(candidates.deletable, vec!["cleanup/merged"]);
+        assert!(candidates.protected.iter().any(|branch| branch == "master"));
+        assert!(candidates
+            .checked_out
+            .iter()
+            .any(|branch| branch == "feature/demo"));
+    }
+
+    #[test]
+    fn deletes_only_local_branches_merged_into_cleanup_target() {
+        let sandbox = SandboxRepo::create();
+        git(&sandbox.root, &["branch", "master"]);
+        git(&sandbox.root, &["branch", "cleanup/merged"]);
+
+        let result = cleanup_merged_branches(&sandbox.root, "master").unwrap();
+
+        assert!(result.ok);
+        assert!(result
+            .changed_paths
+            .iter()
+            .any(|branch| branch == "cleanup/merged"));
+        let branches = run_git(&sandbox.root, &["branch", "--format=%(refname:short)"]).unwrap();
+        assert!(!branches.lines().any(|branch| branch == "cleanup/merged"));
+        assert!(branches.lines().any(|branch| branch == "master"));
+        assert!(branches.lines().any(|branch| branch == "feature/demo"));
     }
 
     #[test]

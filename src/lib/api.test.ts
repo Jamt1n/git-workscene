@@ -33,6 +33,12 @@ describe("api wrappers", () => {
       { repoPath: "/repo", branch: "feature/demo" },
     ],
     [
+      "cleanupMergedBranchesPreview",
+      () => api.cleanupMergedBranchesPreview("/repo", "master"),
+      "cleanup_merged_branches_preview",
+      { repoPath: "/repo", targetBranch: "master" },
+    ],
+    [
       "createWorktree",
       () => api.createWorktree("/repo", "feature/demo", "/repo-wt", false),
       "create_worktree",
@@ -54,6 +60,12 @@ describe("api wrappers", () => {
       () => api.deleteBranch("/repo", "feature/demo", true),
       "delete_branch",
       { repoPath: "/repo", branch: "feature/demo", force: true },
+    ],
+    [
+      "cleanupMergedBranches",
+      () => api.cleanupMergedBranches("/repo", "prerelease"),
+      "cleanup_merged_branches",
+      { repoPath: "/repo", targetBranch: "prerelease" },
     ],
     ["fetchRepository", () => api.fetchRepository("/repo"), "fetch_repository", { repoPath: "/repo" }],
     ["pullWorktree", () => api.pullWorktree("/repo"), "pull_worktree", { worktreePath: "/repo" }],

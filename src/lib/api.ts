@@ -38,6 +38,10 @@ export function deleteBranchPreview(repoPath: string, branch: string) {
   return invoke<SafetyPreview>("delete_branch_preview", { repoPath, branch });
 }
 
+export function cleanupMergedBranchesPreview(repoPath: string, targetBranch: string) {
+  return invoke<SafetyPreview>("cleanup_merged_branches_preview", { repoPath, targetBranch });
+}
+
 export function createWorktree(
   repoPath: string,
   branch: string,
@@ -58,6 +62,10 @@ export function deleteWorktree(worktreePath: string, force: boolean) {
 
 export function deleteBranch(repoPath: string, branch: string, force: boolean) {
   return invoke<CommandResult>("delete_branch", { repoPath, branch, force });
+}
+
+export function cleanupMergedBranches(repoPath: string, targetBranch: string) {
+  return invoke<CommandResult>("cleanup_merged_branches", { repoPath, targetBranch });
 }
 
 export function fetchRepository(repoPath: string) {

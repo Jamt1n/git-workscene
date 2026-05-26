@@ -80,6 +80,14 @@ fn delete_branch_preview(repo_path: String, branch: String) -> Result<SafetyPrev
 }
 
 #[tauri::command]
+fn cleanup_merged_branches_preview(
+    repo_path: String,
+    target_branch: String,
+) -> Result<SafetyPreview, String> {
+    safety::cleanup_merged_branches_preview(&PathBuf::from(repo_path), &target_branch)
+}
+
+#[tauri::command]
 fn create_worktree(
     repo_path: String,
     branch: String,
@@ -102,6 +110,14 @@ fn delete_worktree(worktree_path: String, force: bool) -> Result<CommandResult, 
 #[tauri::command]
 fn delete_branch(repo_path: String, branch: String, force: bool) -> Result<CommandResult, String> {
     git::delete_branch(&PathBuf::from(repo_path), &branch, force)
+}
+
+#[tauri::command]
+fn cleanup_merged_branches(
+    repo_path: String,
+    target_branch: String,
+) -> Result<CommandResult, String> {
+    git::cleanup_merged_branches(&PathBuf::from(repo_path), &target_branch)
 }
 
 #[tauri::command]
@@ -154,9 +170,11 @@ pub fn run() {
             scan_all_repositories,
             delete_worktree_preview,
             delete_branch_preview,
+            cleanup_merged_branches_preview,
             create_worktree,
             delete_worktree,
             delete_branch,
+            cleanup_merged_branches,
             fetch_repository,
             pull_worktree,
             push_branch,

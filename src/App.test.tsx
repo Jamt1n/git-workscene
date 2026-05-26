@@ -6,6 +6,8 @@ import { snapshotFixture } from "./test/fixtures";
 const openMock = vi.fn();
 const addRepositoriesMock = vi.fn();
 const scanAllRepositoriesMock = vi.fn();
+const cleanupMergedBranchesPreviewMock = vi.fn();
+const cleanupMergedBranchesMock = vi.fn();
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: (...args: unknown[]) => openMock(...args),
@@ -22,21 +24,26 @@ vi.mock("./lib/api", () => ({
   createWorktree: vi.fn(),
   deleteWorktreePreview: vi.fn(),
   deleteBranchPreview: vi.fn(),
+  cleanupMergedBranchesPreview: (...args: unknown[]) => cleanupMergedBranchesPreviewMock(...args),
   deleteWorktree: vi.fn(),
   deleteBranch: vi.fn(),
+  cleanupMergedBranches: (...args: unknown[]) => cleanupMergedBranchesMock(...args),
 }));
 
 vi.mock("./components/CanvasView", () => ({
   CanvasView: ({
     graph,
+    onSelect,
   }: {
     graph: { nodes: Array<{ data: { kind: string; title: string } }> };
+    onSelect: (node: unknown) => void;
   }) => {
     const repo = graph.nodes.find((node) => node.data.kind === "repository");
     const branchCount = graph.nodes.filter((node) => node.data.kind === "branch").length;
     const stashCount = graph.nodes.filter((node) => node.data.kind === "stash").length;
     return (
       <div data-testid="canvas-view">
+        <button onClick={() => repo && onSelect(repo)}>Select repo node</button>
         {repo?.data.title ?? "canvas"} branches:{branchCount} stashes:{stashCount}
       </div>
     );
@@ -88,6 +95,19 @@ describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     openMock.mockResolvedValue(null);
+    cleanupMergedBranchesPreviewMock.mockResolvedValue({
+      operation: "cleanupMergedBranches",
+      riskLevel: "medium",
+      title: "Clean branches merged into master",
+      facts: ["Target branch: master", "Safe to delete: 1", "Delete: cleanup/merged"],
+      blockers: [],
+      command: "git branch -D cleanup/merged",
+      requiresConfirmation: true,
+      targetPath: "/tmp/repo",
+      targetBranch: "master",
+      branchNames: ["cleanup/merged"],
+    });
+    cleanupMergedBranchesMock.mockResolvedValue({});
     addRepositoriesMock.mockResolvedValue([{
       id: "/tmp/repo",
       path: "/tmp/repo",
@@ -247,5 +267,26 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: /Stashes/ }));
 
     expect(screen.getByTestId("canvas-view")).toHaveTextContent("stashes:1");
+  });
+
+  it("previews and confirms merged branch cleanup from the inspector", async () => {
+    scanAllRepositoriesMock.mockResolvedValue([snapshotFixture()]);
+
+    render(<App />);
+
+    await screen.findByTestId("canvas-view");
+    fireEvent.click(screen.getByRole("button", { name: "Select repo node" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clean master" }));
+
+    await waitFor(() => {
+      expect(cleanupMergedBranchesPreviewMock).toHaveBeenCalledWith("/tmp/repo", "master");
+    });
+    expect(await screen.findByText("Clean branches merged into master")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => {
+      expect(cleanupMergedBranchesMock).toHaveBeenCalledWith("/tmp/repo", "master");
+    });
   });
 });

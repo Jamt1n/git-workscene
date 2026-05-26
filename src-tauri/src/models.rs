@@ -137,6 +137,8 @@ pub struct SafetyPreview {
     pub command: String,
     pub requires_confirmation: bool,
     pub target_path: Option<String>,
+    pub target_branch: Option<String>,
+    pub branch_names: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -62,6 +62,8 @@ pub fn delete_worktree_preview(worktree_path: &Path) -> Result<SafetyPreview, St
         ),
         requires_confirmation: true,
         target_path: Some(target.path),
+        target_branch: None,
+        branch_names: Vec::new(),
     })
 }
 
@@ -113,7 +115,85 @@ pub fn delete_branch_preview(repo_path: &Path, branch: &str) -> Result<SafetyPre
         command: format!("git branch -d '{}'", target.name.replace('\'', "'\\''")),
         requires_confirmation: true,
         target_path: Some(root.to_string_lossy().to_string()),
+        target_branch: None,
+        branch_names: Vec::new(),
     })
+}
+
+pub fn cleanup_merged_branches_preview(
+    repo_path: &Path,
+    target_branch: &str,
+) -> Result<SafetyPreview, String> {
+    let candidates = git::merged_branch_cleanup_candidates(repo_path, target_branch)?;
+    let mut facts = vec![
+        format!("Target branch: {target_branch}"),
+        format!("Safe to delete: {}", candidates.deletable.len()),
+    ];
+
+    for branch in candidates.deletable.iter().take(20) {
+        facts.push(format!("Delete: {branch}"));
+    }
+    if candidates.deletable.len() > 20 {
+        facts.push(format!("... and {} more", candidates.deletable.len() - 20));
+    }
+    if !candidates.checked_out.is_empty() {
+        facts.push(format!(
+            "Skipped checked-out: {}",
+            candidates.checked_out.join(", ")
+        ));
+    }
+    if !candidates.protected.is_empty() {
+        facts.push(format!(
+            "Skipped protected: {}",
+            candidates.protected.join(", ")
+        ));
+    }
+
+    let mut blockers = Vec::new();
+    if candidates.deletable.is_empty() {
+        blockers.push("No local branches are safe to delete.".to_string());
+    }
+
+    let command = if candidates.deletable.is_empty() {
+        "No branches to delete".to_string()
+    } else {
+        format!(
+            "git -C {} branch -D {}",
+            shell_path(&candidates.root),
+            candidates
+                .deletable
+                .iter()
+                .map(|branch| shell_arg(branch))
+                .collect::<Vec<_>>()
+                .join(" ")
+        )
+    };
+
+    Ok(SafetyPreview {
+        operation: "cleanupMergedBranches".to_string(),
+        risk_level: if blockers.is_empty() {
+            "medium"
+        } else {
+            "blocked"
+        }
+        .to_string(),
+        title: format!("Clean branches merged into {target_branch}"),
+        facts,
+        blockers,
+        command,
+        requires_confirmation: true,
+        target_path: Some(candidates.root.to_string_lossy().to_string()),
+        target_branch: Some(target_branch.to_string()),
+        branch_names: candidates.deletable,
+    })
+}
+
+fn shell_path(path: &Path) -> String {
+    shell_arg(path.to_string_lossy().as_ref())
+}
+
+fn shell_arg(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
 }
 
 #[cfg(test)]
@@ -159,6 +239,43 @@ mod tests {
             .facts
             .iter()
             .any(|fact| fact == "Merged to default: true"));
+    }
+
+    #[test]
+    fn previews_cleanup_of_branches_merged_into_master() {
+        let sandbox = SandboxRepo::create();
+        git(&sandbox.root, &["branch", "master"]);
+        git(&sandbox.root, &["branch", "cleanup/merged"]);
+
+        let preview = cleanup_merged_branches_preview(&sandbox.root, "master").unwrap();
+
+        assert_eq!(preview.operation, "cleanupMergedBranches");
+        assert_eq!(preview.risk_level, "medium");
+        assert_eq!(preview.target_branch.as_deref(), Some("master"));
+        assert_eq!(preview.branch_names, vec!["cleanup/merged"]);
+        assert!(preview
+            .facts
+            .iter()
+            .any(|fact| fact == "Delete: cleanup/merged"));
+        assert!(preview
+            .facts
+            .iter()
+            .any(|fact| fact.contains("Skipped protected")));
+    }
+
+    #[test]
+    fn blocks_cleanup_preview_without_safe_candidates() {
+        let sandbox = SandboxRepo::create();
+        git(&sandbox.root, &["branch", "prerelease"]);
+
+        let preview = cleanup_merged_branches_preview(&sandbox.root, "prerelease").unwrap();
+
+        assert_eq!(preview.risk_level, "blocked");
+        assert!(preview.branch_names.is_empty());
+        assert!(preview
+            .blockers
+            .iter()
+            .any(|blocker| blocker == "No local branches are safe to delete."));
     }
 
     #[test]

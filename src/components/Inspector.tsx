@@ -25,6 +25,7 @@ interface InspectorProps {
   onCreateWorktree: (repoPath: string, branch: string) => void;
   onPreviewDeleteWorktree: (path: string) => void;
   onPreviewDeleteBranch: (repoPath: string, branch: string) => void;
+  onPreviewCleanupMergedBranches: (repoPath: string, targetBranch: "master" | "prerelease") => void;
   onConfirmPreview: () => void;
   onCancelPreview: () => void;
 }
@@ -40,6 +41,7 @@ export function Inspector({
   onCreateWorktree,
   onPreviewDeleteWorktree,
   onPreviewDeleteBranch,
+  onPreviewCleanupMergedBranches,
   onConfirmPreview,
   onCancelPreview,
 }: InspectorProps) {
@@ -120,6 +122,27 @@ export function Inspector({
               <Download size={16} />
               <span>Fetch</span>
             </button>
+
+            {data.kind === "repository" ? (
+              <>
+                <button
+                  className="danger"
+                  title="Preview clean local branches merged into master"
+                  onClick={() => onPreviewCleanupMergedBranches(data.repoPath, "master")}
+                >
+                  <Trash2 size={16} />
+                  <span>Clean master</span>
+                </button>
+                <button
+                  className="danger"
+                  title="Preview clean local branches merged into prerelease"
+                  onClick={() => onPreviewCleanupMergedBranches(data.repoPath, "prerelease")}
+                >
+                  <Trash2 size={16} />
+                  <span>Clean prerelease</span>
+                </button>
+              </>
+            ) : null}
 
             {data.kind === "worktree" && data.path ? (
               <>

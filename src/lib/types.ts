@@ -75,6 +75,8 @@ export interface SafetyPreview {
   command: string;
   requiresConfirmation: boolean;
   targetPath: string | null;
+  targetBranch: string | null;
+  branchNames: string[];
 }
 
 export interface CommandResult {
