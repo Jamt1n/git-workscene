@@ -92,6 +92,7 @@ describe("buildGraph", () => {
     snapshot.remoteBranches = Array.from({ length: 30 }, (_, index) => ({
       name: `origin/feature/${index}`,
       fullRef: `refs/remotes/origin/feature/${index}`,
+      createdAt: String(index),
       upstream: null,
       ahead: 0,
       behind: 0,
@@ -104,6 +105,38 @@ describe("buildGraph", () => {
     const graph = buildGraph([snapshot]);
 
     expect(graph.nodes.filter((node) => node.data.kind === "remote")).toHaveLength(24);
+  });
+
+  it("orders graph columns by created time descending", () => {
+    const snapshot = snapshotFixture();
+    snapshot.worktrees.push({
+      ...snapshot.worktrees[0],
+      path: "/tmp/repo-newer-worktree",
+      branch: "feature/newer",
+      createdAt: "40",
+    });
+    snapshot.localBranches.push({
+      ...snapshot.localBranches[0],
+      name: "feature/newer",
+      fullRef: "refs/heads/feature/newer",
+      upstream: null,
+      worktreePath: "/tmp/repo-newer-worktree",
+      createdAt: "50",
+    });
+    snapshot.stashes.push({
+      id: "stash@{1}",
+      createdAt: "60",
+      message: "newer stash",
+    });
+
+    const graph = buildGraph([snapshot]);
+    const worktrees = graph.nodes.filter((node) => node.data.kind === "worktree");
+    const branches = graph.nodes.filter((node) => node.data.kind === "branch");
+    const stashes = graph.nodes.filter((node) => node.data.kind === "stash");
+
+    expect(worktrees[0].data.title).toBe("repo-newer-worktree");
+    expect(branches[0].data.title).toBe("feature/newer");
+    expect(stashes[0].data.title).toBe("stash@{1}");
   });
 });
 

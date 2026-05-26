@@ -29,6 +29,7 @@ export interface WorktreeSnapshot {
   path: string;
   branch: string | null;
   headSha: string | null;
+  createdAt: string;
   detached: boolean;
   locked: boolean;
   prunable: boolean;
@@ -40,6 +41,7 @@ export interface WorktreeSnapshot {
 export interface BranchSnapshot {
   name: string;
   fullRef: string;
+  createdAt: string;
   upstream: string | null;
   ahead: number;
   behind: number;
@@ -51,6 +53,7 @@ export interface BranchSnapshot {
 
 export interface StashSnapshot {
   id: string;
+  createdAt: string;
   message: string;
 }
 

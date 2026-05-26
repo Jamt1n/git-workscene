@@ -70,6 +70,7 @@ pub struct WorktreeSnapshot {
     pub path: String,
     pub branch: Option<String>,
     pub head_sha: Option<String>,
+    pub created_at: String,
     pub detached: bool,
     pub locked: bool,
     pub prunable: bool,
@@ -83,6 +84,7 @@ pub struct WorktreeSnapshot {
 pub struct BranchSnapshot {
     pub name: String,
     pub full_ref: String,
+    pub created_at: String,
     pub upstream: Option<String>,
     pub ahead: u32,
     pub behind: u32,
@@ -96,6 +98,7 @@ pub struct BranchSnapshot {
 #[serde(rename_all = "camelCase")]
 pub struct StashSnapshot {
     pub id: String,
+    pub created_at: String,
     pub message: String,
 }
 

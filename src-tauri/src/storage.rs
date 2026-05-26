@@ -52,7 +52,7 @@ impl Storage {
                 "SELECT path, display_name, created_at, updated_at, last_scanned_at, pinned, archived
                 FROM repositories
                 WHERE archived = 0
-                ORDER BY pinned DESC, display_name ASC",
+                ORDER BY pinned DESC, CAST(created_at AS INTEGER) DESC, display_name ASC",
             )
             .map_err(|error| error.to_string())?;
 
@@ -145,5 +145,24 @@ mod tests {
         let restored = storage.upsert_repository(&repo_dir).unwrap();
         assert!(!restored.archived);
         assert_eq!(storage.list_repositories().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn lists_repositories_newest_first() {
+        let temp = tempfile::tempdir().unwrap();
+        let storage = Storage::open(temp.path().join("registry.sqlite3")).unwrap();
+        let older = temp.path().join("older");
+        let newer = temp.path().join("newer");
+        std::fs::create_dir_all(&older).unwrap();
+        std::fs::create_dir_all(&newer).unwrap();
+
+        storage.upsert_repository(&older).unwrap();
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        storage.upsert_repository(&newer).unwrap();
+
+        let repos = storage.list_repositories().unwrap();
+
+        assert_eq!(repos[0].display_name, "newer");
+        assert_eq!(repos[1].display_name, "older");
     }
 }

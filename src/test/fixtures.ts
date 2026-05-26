@@ -17,6 +17,7 @@ export function snapshotFixture(): RepositorySnapshot {
         path: "/tmp/repo-feature",
         branch: "feature/demo",
         headSha: "abc",
+        createdAt: "20",
         detached: false,
         locked: false,
         prunable: false,
@@ -36,6 +37,7 @@ export function snapshotFixture(): RepositorySnapshot {
       {
         name: "feature/demo",
         fullRef: "refs/heads/feature/demo",
+        createdAt: "30",
         upstream: "origin/feature/demo",
         ahead: 1,
         behind: 0,
@@ -49,6 +51,7 @@ export function snapshotFixture(): RepositorySnapshot {
       {
         name: "origin/feature/demo",
         fullRef: "refs/remotes/origin/feature/demo",
+        createdAt: "25",
         upstream: null,
         ahead: 0,
         behind: 0,
@@ -61,6 +64,7 @@ export function snapshotFixture(): RepositorySnapshot {
     stashes: [
       {
         id: "stash@{0}",
+        createdAt: "10",
         message: "WIP on feature/demo",
       },
     ],

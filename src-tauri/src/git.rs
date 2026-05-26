@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::UNIX_EPOCH;
 
 pub fn discover_repository(path: &Path) -> Result<PathBuf, String> {
     if !path.exists() {
@@ -259,7 +260,8 @@ fn scan_branches(
     merged: &HashSet<String>,
 ) -> Result<Vec<BranchSnapshot>, String> {
     let refs = if remote { "refs/remotes" } else { "refs/heads" };
-    let format = "%(refname)%09%(refname:short)%09%(upstream:short)%09%(worktreepath)";
+    let format =
+        "%(refname)%09%(refname:short)%09%(upstream:short)%09%(worktreepath)%09%(creatordate:unix)";
     let output = run_git(
         repo_path,
         &["for-each-ref", &format!("--format={format}"), refs],
@@ -268,7 +270,7 @@ fn scan_branches(
 
     for line in output.lines().filter(|line| !line.trim().is_empty()) {
         let parts = line.split('\t').collect::<Vec<_>>();
-        if parts.len() < 4 {
+        if parts.len() < 5 {
             continue;
         }
 
@@ -287,6 +289,7 @@ fn scan_branches(
         branches.push(BranchSnapshot {
             name: name.clone(),
             full_ref,
+            created_at: non_empty(parts[4]).unwrap_or_else(|| "0".to_string()),
             upstream,
             ahead,
             behind,
@@ -301,13 +304,17 @@ fn scan_branches(
 }
 
 fn scan_stashes(repo_path: &Path) -> Result<Vec<StashSnapshot>, String> {
-    let output = run_git(repo_path, &["stash", "list", "--format=%gd%x09%gs"])?;
+    let output = run_git(repo_path, &["stash", "list", "--format=%gd%x09%ct%x09%gs"])?;
     Ok(output
         .lines()
         .filter_map(|line| {
-            let (id, message) = line.split_once('\t')?;
+            let mut parts = line.splitn(3, '\t');
+            let id = parts.next()?;
+            let created_at = parts.next()?;
+            let message = parts.next()?;
             Some(StashSnapshot {
                 id: id.to_string(),
+                created_at: created_at.to_string(),
                 message: message.to_string(),
             })
         })
@@ -504,6 +511,7 @@ impl PartialWorktree {
             path,
             branch: self.branch,
             head_sha: self.head_sha,
+            created_at: path_created_at(&path_buf),
             detached: self.detached,
             locked: self.locked,
             prunable: self.prunable,
@@ -512,6 +520,15 @@ impl PartialWorktree {
             last_commit,
         })
     }
+}
+
+fn path_created_at(path: &Path) -> String {
+    path.metadata()
+        .and_then(|metadata| metadata.created())
+        .ok()
+        .and_then(|created| created.duration_since(UNIX_EPOCH).ok())
+        .map(|duration| duration.as_secs().to_string())
+        .unwrap_or_else(|| "0".to_string())
 }
 
 #[cfg(test)]
@@ -542,8 +559,16 @@ mod tests {
             .iter()
             .find(|worktree| Path::new(&worktree.path).canonicalize().unwrap() == worktree_path)
             .unwrap();
+        assert!(dirty_worktree.created_at.parse::<u64>().unwrap() > 0);
         assert!(dirty_worktree.scan_error.is_none());
         assert_eq!(dirty_worktree.dirty_summary.untracked, 1);
+
+        let branch = snapshot
+            .local_branches
+            .iter()
+            .find(|branch| branch.name == "feature/demo")
+            .unwrap();
+        assert!(branch.created_at.parse::<u64>().unwrap() > 0);
     }
 
     #[test]
@@ -584,6 +609,7 @@ mod tests {
             .stashes
             .iter()
             .any(|stash| stash.message.contains("sandbox stash")));
+        assert!(snapshot.stashes[0].created_at.parse::<u64>().unwrap() > 0);
     }
 
     #[test]

@@ -51,7 +51,17 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
   const nodes: GitFlowNode[] = [];
   const edges: Edge[] = [];
 
-  snapshots.forEach((snapshot, repoIndex) => {
+  sortByCreatedDesc(snapshots, (snapshot) => snapshot.repo.createdAt).forEach((snapshot, repoIndex) => {
+    const worktrees = sortByCreatedDesc(snapshot.worktrees, (worktree) => worktree.createdAt);
+    const localBranches = sortByCreatedDesc(
+      snapshot.localBranches,
+      (branch) => branch.createdAt,
+    );
+    const remoteBranches = sortByCreatedDesc(
+      snapshot.remoteBranches,
+      (branch) => branch.createdAt,
+    );
+    const stashes = sortByCreatedDesc(snapshot.stashes, (stash) => stash.createdAt);
     const baseY = repoIndex * 420;
     const repoId = repoNodeId(snapshot.repo.path);
     nodes.push({
@@ -66,8 +76,8 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
         title: snapshot.repo.displayName,
         subtitle: compactPath(snapshot.repo.path),
         badges: [
-          `${snapshot.worktrees.length} worktrees`,
-          `${snapshot.localBranches.length} branches`,
+          `${worktrees.length} worktrees`,
+          `${localBranches.length} branches`,
           snapshot.diagnostics.length ? "needs attention" : "tracked",
         ],
         repoPath: snapshot.repo.path,
@@ -76,7 +86,7 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
       },
     });
 
-    snapshot.worktrees.forEach((worktree, index) => {
+    worktrees.forEach((worktree, index) => {
       const nodeId = worktreeNodeId(worktree.path);
       nodes.push(worktreeNode(snapshot.repo.path, worktree, index, baseY));
       edges.push({
@@ -91,11 +101,11 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
       });
     });
 
-    snapshot.localBranches.forEach((branch, index) => {
+    localBranches.forEach((branch, index) => {
       const nodeId = branchNodeId(snapshot.repo.path, branch.name);
       nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, false));
 
-      const worktree = snapshot.worktrees.find(
+      const worktree = worktrees.find(
         (candidate) => candidate.branch === branch.name,
       );
       if (worktree) {
@@ -133,11 +143,11 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
       }
     });
 
-    snapshot.remoteBranches.slice(0, 24).forEach((branch, index) => {
+    remoteBranches.slice(0, 24).forEach((branch, index) => {
       nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, true));
     });
 
-    snapshot.stashes.forEach((stash, index) => {
+    stashes.forEach((stash, index) => {
       const nodeId = stashNodeId(snapshot.repo.path, stash.id);
       nodes.push({
         id: nodeId,
@@ -268,4 +278,12 @@ function folderName(path: string) {
 function compactPath(path: string) {
   const parts = path.split("/").filter(Boolean);
   return parts.length > 3 ? `.../${parts.slice(-3).join("/")}` : path;
+}
+
+function sortByCreatedDesc<T>(items: T[], getCreatedAt: (item: T) => string | null | undefined) {
+  return [...items].sort((left, right) => {
+    const rightTime = Number(getCreatedAt(right) ?? 0);
+    const leftTime = Number(getCreatedAt(left) ?? 0);
+    return rightTime - leftTime;
+  });
 }
