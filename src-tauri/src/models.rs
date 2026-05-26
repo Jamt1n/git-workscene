@@ -73,6 +73,7 @@ pub struct WorktreeSnapshot {
     pub detached: bool,
     pub locked: bool,
     pub prunable: bool,
+    pub scan_error: Option<String>,
     pub dirty_summary: DirtySummary,
     pub last_commit: Option<CommitSummary>,
 }

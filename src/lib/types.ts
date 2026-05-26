@@ -32,6 +32,7 @@ export interface WorktreeSnapshot {
   detached: boolean;
   locked: boolean;
   prunable: boolean;
+  scanError: string | null;
   dirtySummary: DirtySummary;
   lastCommit: CommitSummary | null;
 }

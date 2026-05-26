@@ -39,6 +39,33 @@ describe("buildGraph", () => {
     expect(repoNode?.data.badges).toContain("needs attention");
   });
 
+  it("keeps invalid worktrees visible with diagnostics", () => {
+    const snapshot = snapshotFixture();
+    snapshot.worktrees[0].prunable = true;
+    snapshot.worktrees[0].scanError = "Git marks this worktree as prunable";
+    snapshot.worktrees[0].dirtySummary = {
+      modified: 0,
+      added: 0,
+      deleted: 0,
+      renamed: 0,
+      untracked: 0,
+      conflicted: 0,
+    };
+
+    const graph = buildGraph([snapshot]);
+    const worktreeNode = graph.nodes.find((node) => node.data.kind === "worktree");
+
+    expect(worktreeNode?.data.badges).toEqual([
+      "clean",
+      "open",
+      "prunable",
+      "scan issue",
+    ]);
+    expect(worktreeNode?.data.diagnostics).toEqual([
+      "Git marks this worktree as prunable",
+    ]);
+  });
+
   it("limits remote branch nodes to keep dense repos readable", () => {
     const snapshot = snapshotFixture();
     snapshot.remoteBranches = Array.from({ length: 30 }, (_, index) => ({

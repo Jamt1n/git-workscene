@@ -20,6 +20,7 @@ export function snapshotFixture(): RepositorySnapshot {
         detached: false,
         locked: false,
         prunable: false,
+        scanError: null,
         dirtySummary: {
           modified: 1,
           added: 0,

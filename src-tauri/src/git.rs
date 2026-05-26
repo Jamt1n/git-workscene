@@ -60,8 +60,9 @@ pub fn scan_worktrees(repo_path: &Path) -> Result<Vec<WorktreeSnapshot>, String>
             current.detached = true;
         } else if field.starts_with("locked") {
             current.locked = true;
-        } else if field.starts_with("prunable") {
+        } else if let Some(reason) = field.strip_prefix("prunable") {
             current.prunable = true;
+            current.prunable_reason = non_empty(reason.trim());
         }
     }
 
@@ -461,6 +462,7 @@ struct PartialWorktree {
     detached: bool,
     locked: bool,
     prunable: bool,
+    prunable_reason: Option<String>,
 }
 
 impl PartialWorktree {
@@ -470,6 +472,34 @@ impl PartialWorktree {
             .ok_or_else(|| "worktree path missing".to_string())?;
         let path_buf = PathBuf::from(&path);
         let path_exists = path_buf.exists();
+        let mut scan_error = if self.prunable {
+            Some(match &self.prunable_reason {
+                Some(reason) => format!("Git marks this worktree as prunable: {reason}"),
+                None => "Git marks this worktree as prunable".to_string(),
+            })
+        } else if !path_exists {
+            Some("Worktree path does not exist".to_string())
+        } else {
+            None
+        };
+
+        let dirty_summary = if path_exists && !self.prunable {
+            match dirty_summary(&path_buf) {
+                Ok(summary) => summary,
+                Err(error) => {
+                    scan_error = Some(error);
+                    DirtySummary::default()
+                }
+            }
+        } else {
+            DirtySummary::default()
+        };
+        let last_commit = if path_exists && !self.prunable {
+            last_commit(&path_buf)
+        } else {
+            None
+        };
+
         Ok(WorktreeSnapshot {
             path,
             branch: self.branch,
@@ -477,16 +507,9 @@ impl PartialWorktree {
             detached: self.detached,
             locked: self.locked,
             prunable: self.prunable,
-            dirty_summary: if path_exists {
-                dirty_summary(&path_buf)?
-            } else {
-                DirtySummary::default()
-            },
-            last_commit: if path_exists {
-                last_commit(&path_buf)
-            } else {
-                None
-            },
+            scan_error,
+            dirty_summary,
+            last_commit,
         })
     }
 }
@@ -519,6 +542,7 @@ mod tests {
             .iter()
             .find(|worktree| Path::new(&worktree.path).canonicalize().unwrap() == worktree_path)
             .unwrap();
+        assert!(dirty_worktree.scan_error.is_none());
         assert_eq!(dirty_worktree.dirty_summary.untracked, 1);
     }
 
@@ -577,7 +601,40 @@ mod tests {
             .find(|worktree| worktree.branch.as_deref() == Some("feature/demo"))
             .unwrap();
         assert!(stale.prunable);
+        assert!(stale
+            .scan_error
+            .as_deref()
+            .unwrap()
+            .contains("Git marks this worktree as prunable"));
         assert_eq!(stale.dirty_summary.total(), 0);
+    }
+
+    #[test]
+    fn scans_prunable_worktree_whose_path_exists_but_gitdir_is_invalid() {
+        let sandbox = SandboxRepo::create();
+        std::fs::remove_file(sandbox.worktree.join(".git")).unwrap();
+        let output = run_git(&sandbox.root, &["worktree", "list", "--porcelain"]).unwrap();
+        assert!(output.contains("prunable"));
+        assert!(sandbox.worktree.exists());
+
+        let snapshot = scan_repository(&RepositoryRecord::from_path(&sandbox.root)).unwrap();
+
+        let stale = snapshot
+            .worktrees
+            .iter()
+            .find(|worktree| worktree.branch.as_deref() == Some("feature/demo"))
+            .unwrap();
+        assert!(stale.prunable);
+        assert!(stale
+            .scan_error
+            .as_deref()
+            .unwrap()
+            .contains("Git marks this worktree as prunable"));
+        assert_eq!(stale.dirty_summary.total(), 0);
+        assert!(snapshot
+            .local_branches
+            .iter()
+            .any(|branch| branch.name == "feature/demo"));
     }
 
     #[test]

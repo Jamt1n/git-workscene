@@ -134,6 +134,13 @@ function worktreeNode(
   baseY: number,
 ): GitFlowNode {
   const dirty = dirtyTotal(worktree.dirtySummary);
+  const badges = [
+    dirty ? `${dirty} dirty` : "clean",
+    worktree.locked ? "locked" : "open",
+    worktree.prunable ? "prunable" : "active",
+    worktree.scanError ? "scan issue" : "",
+  ].filter(Boolean);
+
   return {
     id: worktreeNodeId(worktree.path),
     type: "gitNode",
@@ -142,14 +149,11 @@ function worktreeNode(
       kind: "worktree",
       title: folderName(worktree.path),
       subtitle: worktree.branch ?? "detached HEAD",
-      badges: [
-        dirty ? `${dirty} dirty` : "clean",
-        worktree.locked ? "locked" : "open",
-        worktree.prunable ? "prunable" : "active",
-      ],
+      badges,
       repoPath,
       path: worktree.path,
       branch: worktree.branch ?? undefined,
+      diagnostics: worktree.scanError ? [worktree.scanError] : undefined,
     },
   };
 }

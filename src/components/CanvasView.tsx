@@ -1,7 +1,6 @@
 import {
   Background,
   Controls,
-  MiniMap,
   ReactFlow,
   type NodeProps,
   useEdgesState,
@@ -23,6 +22,9 @@ const nodeTypes = {
 export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
+  const initialFitNodes = graph.nodes
+    .filter((node) => node.data.kind === "repository" || node.data.kind === "worktree")
+    .map((node) => ({ id: node.id }));
 
   useEffect(() => {
     setNodes(graph.nodes);
@@ -37,6 +39,7 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
         nodeTypes={nodeTypes}
         nodesDraggable
         fitView
+        fitViewOptions={{ nodes: initialFitNodes, padding: 0.22, maxZoom: 0.95 }}
         minZoom={0.25}
         maxZoom={1.8}
         onNodesChange={onNodesChange}
@@ -45,7 +48,6 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
         onPaneClick={() => onSelect(null)}
       >
         <Background color="rgba(245,241,232,0.12)" gap={42} />
-        <MiniMap pannable zoomable nodeClassName={(node) => node.data.kind as string} />
         <Controls position="bottom-left" />
       </ReactFlow>
       <div className="canvas-status">
