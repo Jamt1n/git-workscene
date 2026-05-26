@@ -67,6 +67,7 @@ describe("App", () => {
       expect(addRepositoryMock).toHaveBeenCalledWith("/tmp/repo");
     });
     expect(await screen.findByTestId("canvas-view")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: /Activity/ }));
     expect(screen.getByText("Added repo")).toBeInTheDocument();
   });
 
@@ -78,6 +79,8 @@ describe("App", () => {
     const addButtons = await screen.findAllByRole("button", { name: "Add repository" });
     fireEvent.click(addButtons[0]);
 
+    expect(await screen.findAllByText("dialog permission denied")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("tab", { name: /Activity/ }));
     expect(await screen.findAllByText("dialog permission denied")).toHaveLength(2);
     expect(addRepositoryMock).not.toHaveBeenCalled();
   });

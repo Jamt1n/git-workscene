@@ -2,14 +2,16 @@ import type { ActivityEntry } from "../lib/types";
 
 interface ActivityLogProps {
   entries: ActivityEntry[];
+  limit?: number;
+  showHeader?: boolean;
 }
 
-export function ActivityLog({ entries }: ActivityLogProps) {
+export function ActivityLog({ entries, limit = 8, showHeader = true }: ActivityLogProps) {
   return (
-    <aside className="activity-log">
-      <p className="eyebrow">Activity</p>
+    <section className="activity-log">
+      {showHeader ? <p className="eyebrow">Activity</p> : null}
       {entries.length ? (
-        entries.slice(0, 6).map((entry) => (
+        entries.slice(0, limit).map((entry) => (
           <div key={entry.id} className={`activity-row ${entry.ok ? "ok" : "failed"}`}>
             <strong>{entry.operation}</strong>
             <span>{entry.summary}</span>
@@ -19,6 +21,6 @@ export function ActivityLog({ entries }: ActivityLogProps) {
       ) : (
         <p className="muted">No operations yet.</p>
       )}
-    </aside>
+    </section>
   );
 }

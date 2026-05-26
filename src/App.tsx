@@ -1,6 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityLog } from "./components/ActivityLog";
 import { CanvasView } from "./components/CanvasView";
 import { Inspector } from "./components/Inspector";
 import { RepoSidebar } from "./components/RepoSidebar";
@@ -173,11 +172,11 @@ export default function App() {
             </button>
           </section>
         )}
-        <ActivityLog entries={activity} />
       </section>
       <Inspector
         selectedNode={selectedNode}
         preview={preview}
+        activity={activity}
         onOpen={(path, kind) => run("open path", () => api.openPath(path, kind))}
         onFetch={(repoPath) => run("fetch", () => api.fetchRepository(repoPath))}
         onPull={(path) => run("pull", () => api.pullWorktree(path))}
