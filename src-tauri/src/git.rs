@@ -96,7 +96,7 @@ pub fn create_worktree(
 }
 
 pub fn delete_worktree(worktree_path: &Path, force: bool) -> Result<CommandResult, String> {
-    let root = discover_repository(worktree_path)?;
+    let root = worktree_command_root(worktree_path)?;
     let worktree = worktree_path.to_string_lossy().to_string();
     let args = if force {
         vec!["worktree", "remove", "--force", &worktree]
@@ -400,6 +400,21 @@ fn git_ok(path: &Path, args: &[&str]) -> bool {
         .unwrap_or(false)
 }
 
+fn worktree_command_root(worktree_path: &Path) -> Result<PathBuf, String> {
+    let current = discover_repository(worktree_path)?;
+    let target = worktree_path.canonicalize().map_err(|error| error.to_string())?;
+    let worktrees = scan_worktrees(&current)?;
+
+    Ok(worktrees
+        .into_iter()
+        .find_map(|worktree| {
+            let path = PathBuf::from(worktree.path);
+            let canonical = path.canonicalize().ok()?;
+            (canonical != target).then_some(path)
+        })
+        .unwrap_or(current))
+}
+
 fn non_empty(value: &str) -> Option<String> {
     if value.is_empty() {
         None
@@ -494,5 +509,20 @@ mod tests {
             .find(|worktree| Path::new(&worktree.path).canonicalize().unwrap() == worktree_path)
             .unwrap();
         assert_eq!(dirty_worktree.dirty_summary.untracked, 1);
+    }
+
+    #[test]
+    fn force_removes_dirty_worktree_and_branch() {
+        let sandbox = SandboxRepo::create();
+
+        let worktree_result = delete_worktree(&sandbox.worktree, true).unwrap();
+        assert!(worktree_result.ok);
+        assert!(!sandbox.worktree.exists());
+
+        let branch_result = delete_branch(&sandbox.root, "feature/demo", true).unwrap();
+        assert!(branch_result.ok);
+
+        let branches = run_git(&sandbox.root, &["branch", "--format=%(refname:short)"]).unwrap();
+        assert!(!branches.lines().any(|branch| branch == "feature/demo"));
     }
 }

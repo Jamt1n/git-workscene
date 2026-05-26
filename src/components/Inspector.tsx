@@ -1,0 +1,167 @@
+import {
+  Code2,
+  FolderOpen,
+  GitBranch,
+  GitPullRequestArrow,
+  HardDriveDownload,
+  ShieldAlert,
+  Terminal,
+  Trash2,
+} from "lucide-react";
+import type { GitFlowNode } from "../lib/graph";
+import type { SafetyPreview } from "../lib/types";
+
+interface InspectorProps {
+  selectedNode: GitFlowNode | null;
+  preview: SafetyPreview | null;
+  onOpen: (path: string, kind: "finder" | "terminal" | "editor") => void;
+  onFetch: (repoPath: string) => void;
+  onPull: (path: string) => void;
+  onPush: (path: string) => void;
+  onStash: (path: string) => void;
+  onCreateWorktree: (repoPath: string, branch: string) => void;
+  onPreviewDeleteWorktree: (path: string) => void;
+  onPreviewDeleteBranch: (repoPath: string, branch: string) => void;
+  onConfirmPreview: () => void;
+  onCancelPreview: () => void;
+}
+
+export function Inspector({
+  selectedNode,
+  preview,
+  onOpen,
+  onFetch,
+  onPull,
+  onPush,
+  onStash,
+  onCreateWorktree,
+  onPreviewDeleteWorktree,
+  onPreviewDeleteBranch,
+  onConfirmPreview,
+  onCancelPreview,
+}: InspectorProps) {
+  const data = selectedNode?.data;
+
+  return (
+    <aside className="inspector">
+      <header className="panel-header">
+        <p className="eyebrow">Inspector</p>
+        <h2>{data?.title ?? "Select a node"}</h2>
+      </header>
+
+      {data ? (
+        <>
+          <dl className="detail-list">
+            <div>
+              <dt>Type</dt>
+              <dd>{data.kind}</dd>
+            </div>
+            <div>
+              <dt>Path</dt>
+              <dd>{data.path ?? data.repoPath}</dd>
+            </div>
+            {data.branch ? (
+              <div>
+                <dt>Branch</dt>
+                <dd>{data.branch}</dd>
+              </div>
+            ) : null}
+          </dl>
+
+          <div className="action-grid">
+            {data.path ? (
+              <>
+                <button title="Reveal in Finder" onClick={() => onOpen(data.path!, "finder")}>
+                  <FolderOpen size={16} />
+                </button>
+                <button title="Open terminal" onClick={() => onOpen(data.path!, "terminal")}>
+                  <Terminal size={16} />
+                </button>
+                <button title="Open editor" onClick={() => onOpen(data.path!, "editor")}>
+                  <Code2 size={16} />
+                </button>
+              </>
+            ) : null}
+
+            <button title="Fetch" onClick={() => onFetch(data.repoPath)}>
+              <HardDriveDownload size={16} />
+            </button>
+
+            {data.kind === "worktree" && data.path ? (
+              <>
+                <button title="Pull" onClick={() => onPull(data.path!)}>
+                  <GitPullRequestArrow size={16} />
+                </button>
+                <button title="Push" onClick={() => onPush(data.path!)}>
+                  <GitBranch size={16} />
+                </button>
+                <button title="Stash" onClick={() => onStash(data.path!)}>
+                  <ShieldAlert size={16} />
+                </button>
+                <button
+                  className="danger"
+                  title="Preview delete worktree"
+                  onClick={() => onPreviewDeleteWorktree(data.path!)}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : null}
+
+            {data.kind === "branch" && data.branch ? (
+              <>
+                <button
+                  title="Create worktree"
+                  onClick={() => onCreateWorktree(data.repoPath, data.branch!)}
+                >
+                  <GitBranch size={16} />
+                </button>
+                <button
+                  className="danger"
+                  title="Preview delete branch"
+                  onClick={() => onPreviewDeleteBranch(data.repoPath, data.branch!)}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <p className="muted">Pick a repo, worktree, or branch to see its state and actions.</p>
+      )}
+
+      {preview ? (
+        <section className={`preview preview-${preview.riskLevel}`}>
+          <div className="preview-title">
+            <ShieldAlert size={16} />
+            <strong>{preview.title}</strong>
+          </div>
+          <ul>
+            {preview.facts.map((fact) => (
+              <li key={fact}>{fact}</li>
+            ))}
+          </ul>
+          {preview.blockers.length ? (
+            <div className="blockers">
+              {preview.blockers.map((blocker) => (
+                <p key={blocker}>{blocker}</p>
+              ))}
+            </div>
+          ) : null}
+          <code>{preview.command}</code>
+          <div className="preview-actions">
+            <button onClick={onCancelPreview}>Cancel</button>
+            <button
+              className="danger"
+              disabled={preview.riskLevel === "blocked"}
+              onClick={onConfirmPreview}
+            >
+              Confirm
+            </button>
+          </div>
+        </section>
+      ) : null}
+    </aside>
+  );
+}
