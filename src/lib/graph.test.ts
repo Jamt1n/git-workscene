@@ -27,6 +27,8 @@ describe("buildGraph", () => {
     const worktreeEdge = graph.edges.find((edge) => edge.target.startsWith("worktree:"));
 
     expect(worktreeEdge?.animated).toBe(true);
+    expect(worktreeEdge?.data?.label).toBe("Dirty worktree");
+    expect(worktreeEdge?.data?.description).toBe("This worktree has uncommitted changes");
   });
 
   it("locks nodes into the generated layout", () => {
@@ -41,6 +43,11 @@ describe("buildGraph", () => {
     const graph = buildGraph([snapshotFixture()]);
 
     expect(graph.edges.every((edge) => edge.type === "gitCurve")).toBe(true);
+    expect(graph.edges.map((edge) => edge.data?.label)).toEqual([
+      "Dirty worktree",
+      "Worktree -> Branch",
+      "Branch -> Remote",
+    ]);
     expect(graph.edges.map((edge) => edge.className)).toEqual([
       "git-edge git-edge-worktree",
       "git-edge git-edge-checked-out",

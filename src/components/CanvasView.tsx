@@ -13,7 +13,7 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import { useEffect, useMemo } from "react";
-import type { GitFlowNode, GitGraph, GitNodeData } from "../lib/graph";
+import type { GitEdgeData, GitFlowNode, GitGraph, GitNodeData } from "../lib/graph";
 
 interface CanvasViewProps {
   graph: GitGraph;
@@ -70,6 +70,7 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
       <div className="canvas-status">
         {selectedId ? "Node selected" : "Canvas ready"}
       </div>
+      <LineLegend />
     </section>
   );
 }
@@ -123,6 +124,7 @@ function GitCurveEdge({
   markerEnd,
   style,
   interactionWidth,
+  data,
 }: EdgeProps) {
   const [path] = getBezierPath({
     sourceX,
@@ -134,6 +136,7 @@ function GitCurveEdge({
     curvature: 0.28,
   });
 
+  const edge = data as GitEdgeData | undefined;
   return (
     <BaseEdge
       id={id}
@@ -141,6 +144,7 @@ function GitCurveEdge({
       markerEnd={markerEnd}
       style={style}
       interactionWidth={interactionWidth ?? 16}
+      aria-label={edge?.label}
     />
   );
 }
@@ -148,4 +152,38 @@ function GitCurveEdge({
 function handleTop(index: number, count: number) {
   if (count <= 1) return "50%";
   return `${18 + (index / (count - 1)) * 64}%`;
+}
+
+function LineLegend() {
+  return (
+    <aside className="edge-legend" aria-label="Line legend">
+      <div className="edge-legend-title">Line legend</div>
+      <LegendItem tone="worktree" label="Repository -> Worktree" note="worktree directory" />
+      <LegendItem tone="dirty" label="Dirty worktree" note="uncommitted changes" />
+      <LegendItem tone="checked" label="Worktree -> Branch" note="checked out branch" />
+      <LegendItem tone="branch" label="Repository -> Branch" note="local branch" />
+      <LegendItem tone="upstream" label="Branch -> Remote" note="upstream tracking" />
+      <LegendItem tone="stash" label="Repository -> Stash" note="saved stash" />
+    </aside>
+  );
+}
+
+function LegendItem({
+  tone,
+  label,
+  note,
+}: {
+  tone: "worktree" | "dirty" | "checked" | "branch" | "upstream" | "stash";
+  label: string;
+  note: string;
+}) {
+  return (
+    <div className="edge-legend-item">
+      <span className={`edge-legend-line edge-legend-line-${tone}`} />
+      <span>
+        <strong>{label}</strong>
+        <small>{note}</small>
+      </span>
+    </div>
+  );
 }

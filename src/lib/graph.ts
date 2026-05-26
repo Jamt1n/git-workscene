@@ -9,6 +9,13 @@ import { dirtyTotal } from "./types";
 
 export type GitNodeKind = "repository" | "worktree" | "branch" | "remote" | "stash";
 export type BranchMode = "all" | "focused";
+export type GitEdgeKind =
+  | "worktree"
+  | "dirtyWorktree"
+  | "checkedOut"
+  | "branch"
+  | "upstream"
+  | "stash";
 
 export interface GitNodeData extends Record<string, unknown> {
   kind: GitNodeKind;
@@ -24,15 +31,22 @@ export interface GitNodeData extends Record<string, unknown> {
 }
 
 export type GitFlowNode = Node<GitNodeData, "gitNode">;
+export type GitFlowEdge = Edge<GitEdgeData>;
 
 export interface GitNodeHandles {
   source: string[];
   target: string[];
 }
 
+export interface GitEdgeData extends Record<string, unknown> {
+  kind: GitEdgeKind;
+  label: string;
+  description: string;
+}
+
 export interface GitGraph {
   nodes: GitFlowNode[];
-  edges: Edge[];
+  edges: GitFlowEdge[];
 }
 
 export interface GitGraphOptions {
@@ -75,7 +89,7 @@ export function buildGraph(
   options: GitGraphOptions = defaultGraphOptions,
 ): GitGraph {
   const nodes: GitFlowNode[] = [];
-  const edges: Edge[] = [];
+  const edges: GitFlowEdge[] = [];
   const nodeHandles = new Map<string, GitNodeHandles>();
 
   sortByCreatedDesc(snapshots, (snapshot) => snapshot.repo.createdAt).forEach((snapshot, repoIndex) => {
@@ -121,6 +135,7 @@ export function buildGraph(
 
     worktrees.forEach((worktree, index) => {
       const nodeId = worktreeNodeId(worktree.path);
+      const dirty = dirtyTotal(worktree.dirtySummary) > 0;
       nodes.push(worktreeNode(snapshot.repo.path, worktree, index, baseY));
       edges.push({
         id: `${repoId}->${nodeId}`,
@@ -130,9 +145,10 @@ export function buildGraph(
         targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
         type: "gitCurve",
         className: "git-edge git-edge-worktree",
+        data: edgeData(dirty ? "dirtyWorktree" : "worktree"),
         markerEnd: edgeMarker,
         style: edgeStyle("worktree"),
-        animated: dirtyTotal(worktree.dirtySummary) > 0,
+        animated: dirty,
       });
     });
 
@@ -150,6 +166,7 @@ export function buildGraph(
           targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
           type: "gitCurve",
           className: "git-edge git-edge-checked-out",
+          data: edgeData("checkedOut"),
           markerEnd: edgeMarker,
           style: edgeStyle("checkedOut"),
         });
@@ -162,6 +179,7 @@ export function buildGraph(
           targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
           type: "gitCurve",
           className: "git-edge git-edge-branch",
+          data: edgeData("branch"),
           markerEnd: edgeMarker,
           style: edgeStyle("branch"),
         });
@@ -180,6 +198,7 @@ export function buildGraph(
           ),
           type: "gitCurve",
           className: "git-edge git-edge-upstream",
+          data: edgeData("upstream"),
           markerEnd: edgeMarker,
           style: edgeStyle("upstream"),
         });
@@ -202,6 +221,7 @@ export function buildGraph(
           targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
           type: "gitCurve",
           className: "git-edge git-edge-stash",
+          data: edgeData("stash"),
           markerEnd: edgeMarker,
           style: edgeStyle("stash"),
         });
@@ -290,6 +310,42 @@ function branchBadges(branch: BranchSnapshot) {
   if (branch.isMergedToDefault) badges.push("merged");
   if (!badges.length) badges.push(branch.isRemote ? "remote" : "local");
   return badges;
+}
+
+function edgeData(kind: GitEdgeKind): GitEdgeData {
+  const labels: Record<GitEdgeKind, Pick<GitEdgeData, "label" | "description">> = {
+    worktree: {
+      label: "Repository -> Worktree",
+      description: "Repository owns this worktree directory",
+    },
+    dirtyWorktree: {
+      label: "Dirty worktree",
+      description: "This worktree has uncommitted changes",
+    },
+    checkedOut: {
+      label: "Worktree -> Branch",
+      description: "This worktree currently checks out this branch",
+    },
+    branch: {
+      label: "Repository -> Branch",
+      description: "Local branch exists but is not checked out by a worktree",
+    },
+    upstream: {
+      label: "Branch -> Remote",
+      description: "Local branch tracks this remote upstream",
+    },
+    stash: {
+      label: "Repository -> Stash",
+      description: "Repository contains this saved stash",
+    },
+  };
+  const label = labels[kind];
+
+  return {
+    kind,
+    label: label.label,
+    description: label.description,
+  };
 }
 
 function addNodeHandle(
