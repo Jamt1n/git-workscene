@@ -1,9 +1,13 @@
 import {
   Background,
+  BaseEdge,
   Controls,
   Handle,
   Position,
   ReactFlow,
+  getBezierPath,
+  type EdgeProps,
+  type EdgeTypes,
   type NodeProps,
   useEdgesState,
   useNodesState,
@@ -20,6 +24,10 @@ interface CanvasViewProps {
 const nodeTypes = {
   gitNode: GitNodeCard,
 };
+
+const edgeTypes = {
+  gitCurve: GitCurveEdge,
+} satisfies EdgeTypes;
 
 export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
@@ -44,6 +52,7 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         nodesDraggable={false}
         nodesConnectable={false}
         fitView
@@ -69,12 +78,17 @@ function GitNodeCard({ data, selected }: NodeProps<GitFlowNode>) {
   const node = data as GitNodeData;
   return (
     <div className={`git-node git-node-${node.kind} ${selected ? "is-selected" : ""}`}>
-      <Handle
-        className="node-handle node-handle-target"
-        type="target"
-        position={Position.Left}
-        isConnectable={false}
-      />
+      {node.handles?.target.map((id, index) => (
+        <Handle
+          key={id}
+          id={id}
+          className="node-handle node-handle-target"
+          type="target"
+          position={Position.Left}
+          isConnectable={false}
+          style={{ top: handleTop(index, node.handles?.target.length ?? 1) }}
+        />
+      ))}
       <div className="node-kind">{node.kind}</div>
       <div className="node-title">{node.title}</div>
       <div className="node-subtitle">{node.subtitle}</div>
@@ -83,12 +97,55 @@ function GitNodeCard({ data, selected }: NodeProps<GitFlowNode>) {
           <span key={badge}>{badge}</span>
         ))}
       </div>
-      <Handle
-        className="node-handle node-handle-source"
-        type="source"
-        position={Position.Right}
-        isConnectable={false}
-      />
+      {node.handles?.source.map((id, index) => (
+        <Handle
+          key={id}
+          id={id}
+          className="node-handle node-handle-source"
+          type="source"
+          position={Position.Right}
+          isConnectable={false}
+          style={{ top: handleTop(index, node.handles?.source.length ?? 1) }}
+        />
+      ))}
     </div>
   );
+}
+
+function GitCurveEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  interactionWidth,
+}: EdgeProps) {
+  const [path] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    curvature: 0.28,
+  });
+
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      markerEnd={markerEnd}
+      style={style}
+      interactionWidth={interactionWidth ?? 16}
+    />
+  );
+}
+
+function handleTop(index: number, count: number) {
+  if (count <= 1) return "50%";
+  return `${18 + (index / (count - 1)) * 64}%`;
 }

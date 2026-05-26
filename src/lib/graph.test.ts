@@ -40,12 +40,39 @@ describe("buildGraph", () => {
   it("marks relation edges for visible connection styling", () => {
     const graph = buildGraph([snapshotFixture()]);
 
+    expect(graph.edges.every((edge) => edge.type === "gitCurve")).toBe(true);
     expect(graph.edges.map((edge) => edge.className)).toEqual([
       "git-edge git-edge-worktree",
       "git-edge git-edge-checked-out",
       "git-edge git-edge-upstream",
     ]);
     expect(graph.edges.every((edge) => edge.markerEnd)).toBe(true);
+  });
+
+  it("assigns independent handles to each relation edge", () => {
+    const snapshot = snapshotFixture();
+    snapshot.worktrees.push({
+      ...snapshot.worktrees[0],
+      path: "/tmp/repo-other-worktree",
+      branch: "feature/other",
+      createdAt: "10",
+    });
+    snapshot.localBranches.push({
+      ...snapshot.localBranches[0],
+      name: "feature/other",
+      fullRef: "refs/heads/feature/other",
+      upstream: null,
+      worktreePath: "/tmp/repo-other-worktree",
+      createdAt: "11",
+    });
+
+    const graph = buildGraph([snapshot]);
+    const repoNode = graph.nodes.find((node) => node.data.kind === "repository");
+    const repoEdges = graph.edges.filter((edge) => edge.source === repoNode?.id);
+
+    expect(new Set(repoEdges.map((edge) => edge.sourceHandle)).size).toBe(repoEdges.length);
+    expect(repoNode?.data.handles?.source).toHaveLength(repoEdges.length);
+    expect(graph.edges.every((edge) => edge.sourceHandle && edge.targetHandle)).toBe(true);
   });
 
   it("shows repository diagnostics as attention badges", () => {

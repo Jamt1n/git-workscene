@@ -15,6 +15,7 @@ export interface GitNodeData extends Record<string, unknown> {
   title: string;
   subtitle: string;
   badges: string[];
+  handles?: GitNodeHandles;
   repoPath: string;
   path?: string;
   branch?: string;
@@ -23,6 +24,11 @@ export interface GitNodeData extends Record<string, unknown> {
 }
 
 export type GitFlowNode = Node<GitNodeData, "gitNode">;
+
+export interface GitNodeHandles {
+  source: string[];
+  target: string[];
+}
 
 export interface GitGraph {
   nodes: GitFlowNode[];
@@ -70,6 +76,7 @@ export function buildGraph(
 ): GitGraph {
   const nodes: GitFlowNode[] = [];
   const edges: Edge[] = [];
+  const nodeHandles = new Map<string, GitNodeHandles>();
 
   sortByCreatedDesc(snapshots, (snapshot) => snapshot.repo.createdAt).forEach((snapshot, repoIndex) => {
     const worktrees = sortByCreatedDesc(snapshot.worktrees, (worktree) => worktree.createdAt);
@@ -119,7 +126,9 @@ export function buildGraph(
         id: `${repoId}->${nodeId}`,
         source: repoId,
         target: nodeId,
-        type: "smoothstep",
+        sourceHandle: addNodeHandle(nodeHandles, repoId, "source"),
+        targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
+        type: "gitCurve",
         className: "git-edge git-edge-worktree",
         markerEnd: edgeMarker,
         style: edgeStyle("worktree"),
@@ -137,7 +146,9 @@ export function buildGraph(
           id: `${worktreeNodeId(worktree.path)}->${nodeId}`,
           source: worktreeNodeId(worktree.path),
           target: nodeId,
-          type: "smoothstep",
+          sourceHandle: addNodeHandle(nodeHandles, worktreeNodeId(worktree.path), "source"),
+          targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
+          type: "gitCurve",
           className: "git-edge git-edge-checked-out",
           markerEnd: edgeMarker,
           style: edgeStyle("checkedOut"),
@@ -147,7 +158,9 @@ export function buildGraph(
           id: `${repoId}->${nodeId}`,
           source: repoId,
           target: nodeId,
-          type: "smoothstep",
+          sourceHandle: addNodeHandle(nodeHandles, repoId, "source"),
+          targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
+          type: "gitCurve",
           className: "git-edge git-edge-branch",
           markerEnd: edgeMarker,
           style: edgeStyle("branch"),
@@ -159,7 +172,13 @@ export function buildGraph(
           id: `${nodeId}->${remoteNodeId(snapshot.repo.path, branch.upstream)}`,
           source: nodeId,
           target: remoteNodeId(snapshot.repo.path, branch.upstream),
-          type: "smoothstep",
+          sourceHandle: addNodeHandle(nodeHandles, nodeId, "source"),
+          targetHandle: addNodeHandle(
+            nodeHandles,
+            remoteNodeId(snapshot.repo.path, branch.upstream),
+            "target",
+          ),
+          type: "gitCurve",
           className: "git-edge git-edge-upstream",
           markerEnd: edgeMarker,
           style: edgeStyle("upstream"),
@@ -179,7 +198,9 @@ export function buildGraph(
           id: `${repoId}->${nodeId}`,
           source: repoId,
           target: nodeId,
-          type: "smoothstep",
+          sourceHandle: addNodeHandle(nodeHandles, repoId, "source"),
+          targetHandle: addNodeHandle(nodeHandles, nodeId, "target"),
+          type: "gitCurve",
           className: "git-edge git-edge-stash",
           markerEnd: edgeMarker,
           style: edgeStyle("stash"),
@@ -188,7 +209,16 @@ export function buildGraph(
     }
   });
 
-  return { nodes, edges };
+  return {
+    nodes: nodes.map((node) => ({
+      ...node,
+      data: {
+        ...node.data,
+        handles: nodeHandles.get(node.id),
+      },
+    })),
+    edges,
+  };
 }
 
 function worktreeNode(
@@ -260,6 +290,18 @@ function branchBadges(branch: BranchSnapshot) {
   if (branch.isMergedToDefault) badges.push("merged");
   if (!badges.length) badges.push(branch.isRemote ? "remote" : "local");
   return badges;
+}
+
+function addNodeHandle(
+  handlesByNode: Map<string, GitNodeHandles>,
+  nodeId: string,
+  side: keyof GitNodeHandles,
+) {
+  const handles = handlesByNode.get(nodeId) ?? { source: [], target: [] };
+  const handleId = `${nodeId}:${side}:${handles[side].length}`;
+  handles[side].push(handleId);
+  handlesByNode.set(nodeId, handles);
+  return handleId;
 }
 
 function stashNode(
