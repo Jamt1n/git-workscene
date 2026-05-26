@@ -1,22 +1,31 @@
-import { FolderPlus, RefreshCw, Search } from "lucide-react";
+import { Archive, FolderPlus, GitBranch, RefreshCw, Search } from "lucide-react";
+import type { BranchMode } from "../lib/graph";
 import type { RepositorySnapshot } from "../lib/types";
 
 interface RepoSidebarProps {
   snapshots: RepositorySnapshot[];
   loading: boolean;
   selectedRepoPath: string | null;
+  branchMode: BranchMode;
+  showStashes: boolean;
   onAddRepository: () => void;
   onRefresh: () => void;
   onSelectRepository: (path: string) => void;
+  onBranchModeChange: (mode: BranchMode) => void;
+  onShowStashesChange: (show: boolean) => void;
 }
 
 export function RepoSidebar({
   snapshots,
   loading,
   selectedRepoPath,
+  branchMode,
+  showStashes,
   onAddRepository,
   onRefresh,
   onSelectRepository,
+  onBranchModeChange,
+  onShowStashesChange,
 }: RepoSidebarProps) {
   const worktreeCount = snapshots.reduce(
     (count, snapshot) => count + snapshot.worktrees.length,
@@ -58,6 +67,40 @@ export function RepoSidebar({
           value={snapshots.reduce((count, snapshot) => count + snapshot.stashes.length, 0)}
         />
       </nav>
+
+      <section className="view-controls" aria-label="Graph view controls">
+        <div className="view-control-row">
+          <span>
+            <GitBranch size={14} />
+            Branches
+          </span>
+          <div className="segmented-control">
+            <button
+              className={branchMode === "all" ? "is-active" : ""}
+              onClick={() => onBranchModeChange("all")}
+            >
+              All
+            </button>
+            <button
+              className={branchMode === "focused" ? "is-active" : ""}
+              onClick={() => onBranchModeChange("focused")}
+            >
+              Focused
+            </button>
+          </div>
+        </div>
+        <label className="toggle-row">
+          <span>
+            <Archive size={14} />
+            Stashes
+          </span>
+          <input
+            type="checkbox"
+            checked={showStashes}
+            onChange={(event) => onShowStashesChange(event.currentTarget.checked)}
+          />
+        </label>
+      </section>
 
       <div className="repo-list">
         {snapshots.map((snapshot) => (

@@ -33,7 +33,13 @@ vi.mock("./components/CanvasView", () => ({
     graph: { nodes: Array<{ data: { kind: string; title: string } }> };
   }) => {
     const repo = graph.nodes.find((node) => node.data.kind === "repository");
-    return <div data-testid="canvas-view">{repo?.data.title ?? "canvas"}</div>;
+    const branchCount = graph.nodes.filter((node) => node.data.kind === "branch").length;
+    const stashCount = graph.nodes.filter((node) => node.data.kind === "stash").length;
+    return (
+      <div data-testid="canvas-view">
+        {repo?.data.title ?? "canvas"} branches:{branchCount} stashes:{stashCount}
+      </div>
+    );
   },
 }));
 
@@ -182,5 +188,31 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /older/ }));
 
     expect(screen.getByTestId("canvas-view")).toHaveTextContent("older");
+  });
+
+  it("switches branch visibility and toggles stashes", async () => {
+    const snapshot = snapshotFixture();
+    snapshot.localBranches.push({
+      ...snapshot.localBranches[0],
+      name: "feature/hidden",
+      fullRef: "refs/heads/feature/hidden",
+      upstream: null,
+      worktreePath: null,
+      createdAt: "99",
+    });
+    scanAllRepositoriesMock.mockResolvedValue([snapshot]);
+
+    render(<App />);
+
+    expect(await screen.findByTestId("canvas-view")).toHaveTextContent("branches:2");
+    expect(screen.getByTestId("canvas-view")).toHaveTextContent("stashes:0");
+
+    fireEvent.click(screen.getByRole("button", { name: "Focused" }));
+
+    expect(screen.getByTestId("canvas-view")).toHaveTextContent("branches:1");
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Stashes/ }));
+
+    expect(screen.getByTestId("canvas-view")).toHaveTextContent("stashes:1");
   });
 });

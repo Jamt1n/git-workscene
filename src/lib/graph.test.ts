@@ -85,7 +85,7 @@ describe("buildGraph", () => {
     ]);
   });
 
-  it("shows only upstream remotes for focused branches", () => {
+  it("shows only upstream remotes for visible branches", () => {
     const snapshot = snapshotFixture();
     snapshot.remoteBranches = [
       snapshot.remoteBranches[0],
@@ -131,7 +131,7 @@ describe("buildGraph", () => {
     expect(branches[0].data.title).toBe("feature/newer");
   });
 
-  it("hides unrelated local branches and keeps the repository summary visible", () => {
+  it("shows every local branch by default", () => {
     const snapshot = snapshotFixture();
     snapshot.localBranches.push({
       ...snapshot.localBranches[0],
@@ -145,9 +145,39 @@ describe("buildGraph", () => {
     const graph = buildGraph([snapshot]);
     const repoNode = graph.nodes.find((node) => node.data.kind === "repository");
 
+    expect(graph.nodes.some((node) => node.data.title === "feature/hidden")).toBe(true);
+    expect(repoNode?.data.badges).toContain("2 branches");
+    expect(repoNode?.data.badges).toContain("all branches");
+  });
+
+  it("hides unrelated local branches in focused mode", () => {
+    const snapshot = snapshotFixture();
+    snapshot.localBranches.push({
+      ...snapshot.localBranches[0],
+      name: "feature/hidden",
+      fullRef: "refs/heads/feature/hidden",
+      upstream: null,
+      worktreePath: null,
+      createdAt: "99",
+    });
+
+    const graph = buildGraph([snapshot], { branchMode: "focused", showStashes: false });
+    const repoNode = graph.nodes.find((node) => node.data.kind === "repository");
+
     expect(graph.nodes.some((node) => node.data.title === "feature/hidden")).toBe(false);
     expect(repoNode?.data.badges).toContain("1/2 branches");
     expect(repoNode?.data.badges).toContain("1 hidden");
+  });
+
+  it("renders stash nodes only when enabled", () => {
+    const hidden = buildGraph([snapshotFixture()]);
+
+    expect(hidden.nodes.some((node) => node.data.kind === "stash")).toBe(false);
+
+    const shown = buildGraph([snapshotFixture()], { branchMode: "all", showStashes: true });
+
+    expect(shown.nodes.some((node) => node.data.title === "stash@{0}")).toBe(true);
+    expect(shown.edges.some((edge) => edge.className === "git-edge git-edge-stash")).toBe(true);
   });
 });
 

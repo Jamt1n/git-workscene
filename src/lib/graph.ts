@@ -1,8 +1,14 @@
 import { MarkerType, Position, type Edge, type Node } from "@xyflow/react";
-import type { BranchSnapshot, RepositorySnapshot, WorktreeSnapshot } from "./types";
+import type {
+  BranchSnapshot,
+  RepositorySnapshot,
+  StashSnapshot,
+  WorktreeSnapshot,
+} from "./types";
 import { dirtyTotal } from "./types";
 
-export type GitNodeKind = "repository" | "worktree" | "branch" | "remote";
+export type GitNodeKind = "repository" | "worktree" | "branch" | "remote" | "stash";
+export type BranchMode = "all" | "focused";
 
 export interface GitNodeData extends Record<string, unknown> {
   kind: GitNodeKind;
@@ -23,7 +29,16 @@ export interface GitGraph {
   edges: Edge[];
 }
 
+export interface GitGraphOptions {
+  branchMode: BranchMode;
+  showStashes: boolean;
+}
+
 const primaryBranchNames = new Set(["main", "master", "test", "prerelease"]);
+const defaultGraphOptions: GitGraphOptions = {
+  branchMode: "all",
+  showStashes: false,
+};
 
 const edgeMarker = {
   type: MarkerType.ArrowClosed,
@@ -37,6 +52,7 @@ const edgeColors = {
   checkedOut: "rgba(245,241,232,0.66)",
   branch: "rgba(226,93,122,0.48)",
   upstream: "rgba(107,180,255,0.56)",
+  stash: "rgba(243,179,91,0.58)",
 };
 
 function edgeStyle(kind: keyof typeof edgeColors) {
@@ -48,16 +64,19 @@ function edgeStyle(kind: keyof typeof edgeColors) {
   };
 }
 
-export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
+export function buildGraph(
+  snapshots: RepositorySnapshot[],
+  options: GitGraphOptions = defaultGraphOptions,
+): GitGraph {
   const nodes: GitFlowNode[] = [];
   const edges: Edge[] = [];
 
   sortByCreatedDesc(snapshots, (snapshot) => snapshot.repo.createdAt).forEach((snapshot, repoIndex) => {
     const worktrees = sortByCreatedDesc(snapshot.worktrees, (worktree) => worktree.createdAt);
-    const localBranches = visibleLocalBranches(
-      snapshot.localBranches,
-      worktrees,
-    );
+    const localBranches =
+      options.branchMode === "all"
+        ? sortByCreatedDesc(snapshot.localBranches, (branch) => branch.createdAt)
+        : visibleLocalBranches(snapshot.localBranches, worktrees);
     const remoteBranches = visibleRemoteBranches(snapshot.remoteBranches, localBranches);
     const hiddenBranchCount = snapshot.localBranches.length - localBranches.length;
     const baseY = repoIndex * 420;
@@ -75,9 +94,11 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
         subtitle: compactPath(snapshot.repo.path),
         badges: [
           `${worktrees.length} worktrees`,
-          `${localBranches.length}/${snapshot.localBranches.length} branches`,
+          options.branchMode === "all"
+            ? `${snapshot.localBranches.length} branches`
+            : `${localBranches.length}/${snapshot.localBranches.length} branches`,
           snapshot.stashes.length ? `${snapshot.stashes.length} stashes` : "",
-          hiddenBranchCount ? `${hiddenBranchCount} hidden` : "focused",
+          hiddenBranchCount ? `${hiddenBranchCount} hidden` : "all branches",
           snapshot.diagnostics.length ? "needs attention" : "tracked",
         ].filter((badge): badge is string => Boolean(badge)),
         repoPath: snapshot.repo.path,
@@ -146,6 +167,22 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
     remoteBranches.forEach((branch, index) => {
       nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, true));
     });
+
+    if (options.showStashes) {
+      sortByCreatedDesc(snapshot.stashes, (stash) => stash.createdAt).forEach((stash, index) => {
+        const nodeId = stashNodeId(snapshot.repo.path, stash.id);
+        nodes.push(stashNode(snapshot.repo.path, stash, index, baseY));
+        edges.push({
+          id: `${repoId}->${nodeId}`,
+          source: repoId,
+          target: nodeId,
+          type: "smoothstep",
+          className: "git-edge git-edge-stash",
+          markerEnd: edgeMarker,
+          style: edgeStyle("stash"),
+        });
+      });
+    }
   });
 
   return { nodes, edges };
@@ -222,6 +259,29 @@ function branchBadges(branch: BranchSnapshot) {
   return badges;
 }
 
+function stashNode(
+  repoPath: string,
+  stash: StashSnapshot,
+  index: number,
+  baseY: number,
+): GitFlowNode {
+  return {
+    id: stashNodeId(repoPath, stash.id),
+    type: "gitNode",
+    position: { x: 1280, y: baseY + index * 92 },
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    draggable: false,
+    data: {
+      kind: "stash",
+      title: stash.id,
+      subtitle: stash.message,
+      badges: ["stash"],
+      repoPath,
+    },
+  };
+}
+
 export function repoNodeId(repoPath: string) {
   return `repo:${repoPath}`;
 }
@@ -236,6 +296,10 @@ export function branchNodeId(repoPath: string, branch: string) {
 
 export function remoteNodeId(repoPath: string, branch: string) {
   return `remote:${repoPath}:${branch}`;
+}
+
+export function stashNodeId(repoPath: string, stash: string) {
+  return `stash:${repoPath}:${stash}`;
 }
 
 function folderName(path: string) {

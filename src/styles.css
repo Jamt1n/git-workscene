@@ -166,6 +166,89 @@ input {
   color: #f3b35b;
 }
 
+.view-controls {
+  display: grid;
+  gap: 9px;
+  margin: 0 0 16px;
+  padding: 10px;
+  border: 1px solid rgba(245, 241, 232, 0.1);
+  border-radius: 8px;
+  background: rgba(245, 241, 232, 0.035);
+}
+
+.view-control-row,
+.toggle-row,
+.view-control-row > span,
+.toggle-row > span {
+  display: flex;
+  align-items: center;
+}
+
+.view-control-row,
+.toggle-row {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.view-control-row > span,
+.toggle-row > span {
+  gap: 7px;
+  color: #c9c0af;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.segmented-control {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: 124px;
+  padding: 2px;
+  border: 1px solid rgba(245, 241, 232, 0.1);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.segmented-control button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  color: #9f9688;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.segmented-control button:hover,
+.segmented-control button.is-active {
+  color: #10251f;
+  background: #63d6b5;
+}
+
+.toggle-row {
+  cursor: pointer;
+}
+
+.toggle-row input {
+  width: 34px;
+  height: 20px;
+  padding: 2px;
+  border: 1px solid rgba(245, 241, 232, 0.16);
+  border-radius: 999px;
+  appearance: none;
+  background:
+    radial-gradient(circle at 7px 50%, #c9c0af 0 5px, transparent 5.5px),
+    rgba(245, 241, 232, 0.08);
+  cursor: pointer;
+}
+
+.toggle-row input:checked {
+  border-color: rgba(99, 214, 181, 0.5);
+  background:
+    radial-gradient(circle at 25px 50%, #10251f 0 5px, transparent 5.5px),
+    #63d6b5;
+}
+
 .repo-list {
   display: grid;
   gap: 8px;
@@ -337,6 +420,10 @@ input {
   border-color: rgba(107, 180, 255, 0.78);
 }
 
+.git-node-stash .node-handle {
+  border-color: rgba(243, 179, 91, 0.72);
+}
+
 .git-node.is-selected {
   border-color: #63d6b5;
   box-shadow: 0 0 0 2px rgba(99, 214, 181, 0.18);
@@ -356,6 +443,10 @@ input {
 
 .git-node-remote {
   border-color: rgba(107, 180, 255, 0.38);
+}
+
+.git-node-stash {
+  border-color: rgba(243, 179, 91, 0.38);
 }
 
 .node-kind {

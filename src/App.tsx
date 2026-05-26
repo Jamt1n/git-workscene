@@ -4,7 +4,7 @@ import { CanvasView } from "./components/CanvasView";
 import { Inspector } from "./components/Inspector";
 import { RepoSidebar } from "./components/RepoSidebar";
 import * as api from "./lib/api";
-import { buildGraph, type GitFlowNode } from "./lib/graph";
+import { buildGraph, type BranchMode, type GitFlowNode } from "./lib/graph";
 import type { RepositorySnapshot, SafetyPreview } from "./lib/types";
 
 export default function App() {
@@ -12,6 +12,8 @@ export default function App() {
   const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GitFlowNode | null>(null);
   const [preview, setPreview] = useState<SafetyPreview | null>(null);
+  const [branchMode, setBranchMode] = useState<BranchMode>("all");
+  const [showStashes, setShowStashes] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,8 +25,8 @@ export default function App() {
     [selectedRepoPath, snapshots],
   );
   const graph = useMemo(
-    () => buildGraph(selectedSnapshot ? [selectedSnapshot] : []),
-    [selectedSnapshot],
+    () => buildGraph(selectedSnapshot ? [selectedSnapshot] : [], { branchMode, showStashes }),
+    [branchMode, selectedSnapshot, showStashes],
   );
 
   const pushFailure = useCallback((reason: unknown) => {
@@ -148,6 +150,10 @@ export default function App() {
         onAddRepository={addRepository}
         onRefresh={refresh}
         onSelectRepository={selectRepository}
+        branchMode={branchMode}
+        showStashes={showStashes}
+        onBranchModeChange={setBranchMode}
+        onShowStashesChange={setShowStashes}
       />
       <section className="work-area">
         {error ? <div className="error-banner">{error}</div> : null}
