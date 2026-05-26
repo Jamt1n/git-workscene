@@ -1,5 +1,7 @@
 import {
   Code2,
+  Check,
+  Copy,
   FolderOpen,
   GitBranch,
   GitPullRequestArrow,
@@ -46,6 +48,13 @@ export function Inspector({
 }: InspectorProps) {
   const data = selectedNode?.data;
   const [activeTab, setActiveTab] = useState<"details" | "activity">("details");
+  const [copiedField, setCopiedField] = useState<"path" | "branch" | null>(null);
+  const pathValue = data ? (data.path ?? data.repoPath) : "";
+
+  async function copyValue(field: "path" | "branch", value: string) {
+    await navigator.clipboard.writeText(value);
+    setCopiedField(field);
+  }
 
   return (
     <aside className="inspector">
@@ -83,12 +92,32 @@ export function Inspector({
             </div>
             <div>
               <dt>Path</dt>
-              <dd>{data.path ?? data.repoPath}</dd>
+              <dd>
+                <button
+                  className="copy-value"
+                  aria-label="Copy path"
+                  title="Copy path"
+                  onClick={() => void copyValue("path", pathValue)}
+                >
+                  <span>{pathValue}</span>
+                  {copiedField === "path" ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </dd>
             </div>
             {data.branch ? (
               <div>
                 <dt>Branch</dt>
-                <dd>{data.branch}</dd>
+                <dd>
+                  <button
+                    className="copy-value"
+                    aria-label="Copy branch"
+                    title="Copy branch"
+                    onClick={() => void copyValue("branch", data.branch!)}
+                  >
+                    <span>{data.branch}</span>
+                    {copiedField === "branch" ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                </dd>
               </div>
             ) : null}
           </dl>

@@ -426,6 +426,39 @@ input {
   overflow-wrap: anywhere;
 }
 
+.copy-value {
+  width: 100%;
+  min-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  color: #f5f1e8;
+  background: transparent;
+  text-align: left;
+}
+
+.copy-value:hover {
+  color: #63d6b5;
+  background: transparent;
+}
+
+.copy-value span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.copy-value svg {
+  flex: 0 0 auto;
+  color: #9f9688;
+}
+
+.copy-value:hover svg {
+  color: #63d6b5;
+}
+
 .inspector-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
