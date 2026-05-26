@@ -2,7 +2,7 @@ import { MarkerType, Position, type Edge, type Node } from "@xyflow/react";
 import type { BranchSnapshot, RepositorySnapshot, WorktreeSnapshot } from "./types";
 import { dirtyTotal } from "./types";
 
-export type GitNodeKind = "repository" | "worktree" | "branch" | "remote" | "stash";
+export type GitNodeKind = "repository" | "worktree" | "branch" | "remote";
 
 export interface GitNodeData extends Record<string, unknown> {
   kind: GitNodeKind;
@@ -23,6 +23,8 @@ export interface GitGraph {
   edges: Edge[];
 }
 
+const primaryBranchNames = new Set(["main", "master", "test", "prerelease"]);
+
 const edgeMarker = {
   type: MarkerType.ArrowClosed,
   width: 14,
@@ -35,7 +37,6 @@ const edgeColors = {
   checkedOut: "rgba(245,241,232,0.66)",
   branch: "rgba(226,93,122,0.48)",
   upstream: "rgba(107,180,255,0.56)",
-  stash: "rgba(243,179,91,0.58)",
 };
 
 function edgeStyle(kind: keyof typeof edgeColors) {
@@ -53,15 +54,12 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
 
   sortByCreatedDesc(snapshots, (snapshot) => snapshot.repo.createdAt).forEach((snapshot, repoIndex) => {
     const worktrees = sortByCreatedDesc(snapshot.worktrees, (worktree) => worktree.createdAt);
-    const localBranches = sortByCreatedDesc(
+    const localBranches = visibleLocalBranches(
       snapshot.localBranches,
-      (branch) => branch.createdAt,
+      worktrees,
     );
-    const remoteBranches = sortByCreatedDesc(
-      snapshot.remoteBranches,
-      (branch) => branch.createdAt,
-    );
-    const stashes = sortByCreatedDesc(snapshot.stashes, (stash) => stash.createdAt);
+    const remoteBranches = visibleRemoteBranches(snapshot.remoteBranches, localBranches);
+    const hiddenBranchCount = snapshot.localBranches.length - localBranches.length;
     const baseY = repoIndex * 420;
     const repoId = repoNodeId(snapshot.repo.path);
     nodes.push({
@@ -77,9 +75,11 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
         subtitle: compactPath(snapshot.repo.path),
         badges: [
           `${worktrees.length} worktrees`,
-          `${localBranches.length} branches`,
+          `${localBranches.length}/${snapshot.localBranches.length} branches`,
+          snapshot.stashes.length ? `${snapshot.stashes.length} stashes` : "",
+          hiddenBranchCount ? `${hiddenBranchCount} hidden` : "focused",
           snapshot.diagnostics.length ? "needs attention" : "tracked",
-        ],
+        ].filter((badge): badge is string => Boolean(badge)),
         repoPath: snapshot.repo.path,
         path: snapshot.repo.path,
         diagnostics: snapshot.diagnostics,
@@ -143,36 +143,8 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
       }
     });
 
-    remoteBranches.slice(0, 24).forEach((branch, index) => {
+    remoteBranches.forEach((branch, index) => {
       nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, true));
-    });
-
-    stashes.forEach((stash, index) => {
-      const nodeId = stashNodeId(snapshot.repo.path, stash.id);
-      nodes.push({
-        id: nodeId,
-        type: "gitNode",
-        position: { x: 1040, y: baseY + index * 92 },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
-        draggable: false,
-        data: {
-          kind: "stash",
-          title: stash.id,
-          subtitle: stash.message,
-          badges: ["stash"],
-          repoPath: snapshot.repo.path,
-        },
-      });
-      edges.push({
-        id: `${repoId}->${nodeId}`,
-        source: repoId,
-        target: nodeId,
-        type: "smoothstep",
-        className: "git-edge git-edge-stash",
-        markerEnd: edgeMarker,
-        style: edgeStyle("stash"),
-      });
     });
   });
 
@@ -266,10 +238,6 @@ export function remoteNodeId(repoPath: string, branch: string) {
   return `remote:${repoPath}:${branch}`;
 }
 
-export function stashNodeId(repoPath: string, stash: string) {
-  return `stash:${repoPath}:${stash}`;
-}
-
 function folderName(path: string) {
   const parts = path.split("/").filter(Boolean);
   return parts[parts.length - 1] ?? path;
@@ -278,6 +246,36 @@ function folderName(path: string) {
 function compactPath(path: string) {
   const parts = path.split("/").filter(Boolean);
   return parts.length > 3 ? `.../${parts.slice(-3).join("/")}` : path;
+}
+
+function visibleLocalBranches(
+  branches: BranchSnapshot[],
+  worktrees: WorktreeSnapshot[],
+) {
+  const worktreeBranches = new Set(
+    worktrees
+      .map((worktree) => worktree.branch)
+      .filter((branch): branch is string => Boolean(branch)),
+  );
+
+  return sortByCreatedDesc(branches, (branch) => branch.createdAt).filter(
+    (branch) => worktreeBranches.has(branch.name) || primaryBranchNames.has(branch.name),
+  );
+}
+
+function visibleRemoteBranches(
+  branches: BranchSnapshot[],
+  localBranches: BranchSnapshot[],
+) {
+  const upstreams = new Set(
+    localBranches
+      .map((branch) => branch.upstream)
+      .filter((branch): branch is string => Boolean(branch)),
+  );
+
+  return sortByCreatedDesc(branches, (branch) => branch.createdAt).filter((branch) =>
+    upstreams.has(branch.name),
+  );
 }
 
 function sortByCreatedDesc<T>(items: T[], getCreatedAt: (item: T) => string | null | undefined) {

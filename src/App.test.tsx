@@ -27,8 +27,35 @@ vi.mock("./lib/api", () => ({
 }));
 
 vi.mock("./components/CanvasView", () => ({
-  CanvasView: () => <div data-testid="canvas-view">canvas</div>,
+  CanvasView: ({
+    graph,
+  }: {
+    graph: { nodes: Array<{ data: { kind: string; title: string } }> };
+  }) => {
+    const repo = graph.nodes.find((node) => node.data.kind === "repository");
+    return <div data-testid="canvas-view">{repo?.data.title ?? "canvas"}</div>;
+  },
 }));
+
+function namedSnapshot(displayName: string, path: string, createdAt: string) {
+  const snapshot = snapshotFixture();
+  snapshot.repo = {
+    ...snapshot.repo,
+    id: path,
+    path,
+    displayName,
+    createdAt,
+  };
+  snapshot.worktrees = snapshot.worktrees.map((worktree) => ({
+    ...worktree,
+    path: `${path}-feature`,
+  }));
+  snapshot.localBranches = snapshot.localBranches.map((branch) => ({
+    ...branch,
+    worktreePath: `${path}-feature`,
+  }));
+  return snapshot;
+}
 
 describe("App", () => {
   beforeEach(() => {
@@ -67,8 +94,7 @@ describe("App", () => {
       expect(addRepositoryMock).toHaveBeenCalledWith("/tmp/repo");
     });
     expect(await screen.findByTestId("canvas-view")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("tab", { name: /Activity/ }));
-    expect(screen.getByText("Added repo")).toBeInTheDocument();
+    expect(screen.getByTestId("canvas-view")).toHaveTextContent("repo");
   });
 
   it("shows dialog permission failures instead of failing silently", async () => {
@@ -80,8 +106,6 @@ describe("App", () => {
     fireEvent.click(addButtons[0]);
 
     expect(await screen.findAllByText("dialog permission denied")).toHaveLength(1);
-    fireEvent.click(screen.getByRole("tab", { name: /Activity/ }));
-    expect(await screen.findAllByText("dialog permission denied")).toHaveLength(2);
     expect(addRepositoryMock).not.toHaveBeenCalled();
   });
 
@@ -106,5 +130,19 @@ describe("App", () => {
       expect(addRepositoryMock).toHaveBeenCalledWith("/tmp/repo");
     });
     expect(await screen.findByTestId("canvas-view")).toBeInTheDocument();
+  });
+
+  it("focuses the canvas on the selected repository", async () => {
+    const newer = namedSnapshot("newer", "/tmp/newer", "2");
+    const older = namedSnapshot("older", "/tmp/older", "1");
+    scanAllRepositoriesMock.mockResolvedValue([newer, older]);
+
+    render(<App />);
+
+    expect(await screen.findByTestId("canvas-view")).toHaveTextContent("newer");
+
+    fireEvent.click(screen.getByRole("button", { name: /older/ }));
+
+    expect(screen.getByTestId("canvas-view")).toHaveTextContent("older");
   });
 });

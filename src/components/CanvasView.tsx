@@ -24,9 +24,7 @@ const nodeTypes = {
 export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(graph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(graph.edges);
-  const initialFitNodes = graph.nodes
-    .filter((node) => node.data.kind === "repository" || node.data.kind === "worktree")
-    .map((node) => ({ id: node.id }));
+  const initialFitNodes = graph.nodes.map((node) => ({ id: node.id }));
 
   useEffect(() => {
     setNodes(graph.nodes);

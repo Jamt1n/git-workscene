@@ -172,18 +172,24 @@ input {
   overflow: auto;
 }
 
-.repo-row,
-.activity-row {
+.repo-row {
+  width: 100%;
   display: grid;
   gap: 5px;
   padding: 10px;
   border: 1px solid rgba(245, 241, 232, 0.11);
   border-radius: 7px;
   background: rgba(245, 241, 232, 0.045);
+  text-align: left;
+}
+
+.repo-row.is-active {
+  border-color: rgba(99, 214, 181, 0.46);
+  background: rgba(99, 214, 181, 0.09);
+  box-shadow: inset 3px 0 0 rgba(99, 214, 181, 0.86);
 }
 
 .repo-row span,
-.activity-row span,
 .muted {
   color: #9f9688;
   font-size: 12px;
@@ -331,10 +337,6 @@ input {
   border-color: rgba(107, 180, 255, 0.78);
 }
 
-.git-node-stash .node-handle {
-  border-color: rgba(243, 179, 91, 0.72);
-}
-
 .git-node.is-selected {
   border-color: #63d6b5;
   box-shadow: 0 0 0 2px rgba(99, 214, 181, 0.18);
@@ -354,10 +356,6 @@ input {
 
 .git-node-remote {
   border-color: rgba(107, 180, 255, 0.38);
-}
-
-.git-node-stash {
-  border-color: rgba(243, 179, 91, 0.38);
 }
 
 .node-kind {
@@ -459,44 +457,6 @@ input {
   color: #63d6b5;
 }
 
-.inspector-tabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 16px;
-  padding: 4px;
-  border: 1px solid rgba(245, 241, 232, 0.1);
-  border-radius: 8px;
-  background: rgba(245, 241, 232, 0.04);
-}
-
-.inspector-tabs button {
-  min-width: 0;
-  min-height: 30px;
-  border: 0;
-  color: #9f9688;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 750;
-}
-
-.inspector-tabs button.is-active {
-  color: #10251f;
-  background: #63d6b5;
-}
-
-.inspector-tabs span {
-  display: inline-grid;
-  min-width: 18px;
-  height: 18px;
-  place-items: center;
-  margin-left: 6px;
-  border-radius: 999px;
-  color: #f5f1e8;
-  background: rgba(16, 37, 31, 0.48);
-  font-size: 10px;
-}
-
 .action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -572,8 +532,7 @@ button.danger:hover {
   font-size: 12px;
 }
 
-.preview code,
-.activity-row code {
+.preview code {
   max-width: 100%;
   padding: 6px;
   overflow: auto;
@@ -614,28 +573,6 @@ button.danger:hover {
   color: #d8d0c0;
   font-size: 12px;
   overflow-wrap: anywhere;
-}
-
-.activity-log {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 8px;
-  margin-top: 18px;
-  overflow: auto;
-}
-
-.activity-log .eyebrow {
-  margin-bottom: 0;
-}
-
-.activity-row.ok {
-  border-color: rgba(99, 214, 181, 0.18);
-}
-
-.activity-row.failed {
-  border-color: rgba(226, 93, 122, 0.28);
 }
 
 .empty-state {

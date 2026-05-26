@@ -5,7 +5,7 @@ import { dirtyTotal } from "./types";
 import { snapshotFixture } from "../test/fixtures";
 
 describe("buildGraph", () => {
-  it("connects repository, worktree, branch, remote, and stash nodes", () => {
+  it("connects repository, worktree, branch, and upstream remote nodes", () => {
     const snapshot = snapshotFixture();
 
     const graph = buildGraph([snapshot]);
@@ -15,11 +15,10 @@ describe("buildGraph", () => {
       "worktree",
       "branch",
       "remote",
-      "stash",
     ]);
     expect(graph.edges.some((edge) => edge.source.startsWith("repo:"))).toBe(true);
     expect(graph.edges.some((edge) => edge.id.includes("origin/feature/demo"))).toBe(true);
-    expect(graph.edges.some((edge) => edge.id.includes("stash@{0}"))).toBe(true);
+    expect(graph.nodes.some((node) => node.data.title === "stash@{0}")).toBe(false);
   });
 
   it("marks dirty worktree edges as animated", () => {
@@ -45,7 +44,6 @@ describe("buildGraph", () => {
       "git-edge git-edge-worktree",
       "git-edge git-edge-checked-out",
       "git-edge git-edge-upstream",
-      "git-edge git-edge-stash",
     ]);
     expect(graph.edges.every((edge) => edge.markerEnd)).toBe(true);
   });
@@ -87,24 +85,25 @@ describe("buildGraph", () => {
     ]);
   });
 
-  it("limits remote branch nodes to keep dense repos readable", () => {
+  it("shows only upstream remotes for focused branches", () => {
     const snapshot = snapshotFixture();
-    snapshot.remoteBranches = Array.from({ length: 30 }, (_, index) => ({
-      name: `origin/feature/${index}`,
-      fullRef: `refs/remotes/origin/feature/${index}`,
-      createdAt: String(index),
-      upstream: null,
-      ahead: 0,
-      behind: 0,
-      isMergedToDefault: false,
-      worktreePath: null,
-      lastCommit: null,
-      isRemote: true,
-    }));
+    snapshot.remoteBranches = [
+      snapshot.remoteBranches[0],
+      {
+        ...snapshot.remoteBranches[0],
+        name: "origin/unrelated",
+        fullRef: "refs/remotes/origin/unrelated",
+        createdAt: "99",
+      },
+    ];
 
     const graph = buildGraph([snapshot]);
 
-    expect(graph.nodes.filter((node) => node.data.kind === "remote")).toHaveLength(24);
+    expect(
+      graph.nodes
+        .filter((node) => node.data.kind === "remote")
+        .map((node) => node.data.title),
+    ).toEqual(["origin/feature/demo"]);
   });
 
   it("orders graph columns by created time descending", () => {
@@ -123,20 +122,32 @@ describe("buildGraph", () => {
       worktreePath: "/tmp/repo-newer-worktree",
       createdAt: "50",
     });
-    snapshot.stashes.push({
-      id: "stash@{1}",
-      createdAt: "60",
-      message: "newer stash",
-    });
 
     const graph = buildGraph([snapshot]);
     const worktrees = graph.nodes.filter((node) => node.data.kind === "worktree");
     const branches = graph.nodes.filter((node) => node.data.kind === "branch");
-    const stashes = graph.nodes.filter((node) => node.data.kind === "stash");
 
     expect(worktrees[0].data.title).toBe("repo-newer-worktree");
     expect(branches[0].data.title).toBe("feature/newer");
-    expect(stashes[0].data.title).toBe("stash@{1}");
+  });
+
+  it("hides unrelated local branches and keeps the repository summary visible", () => {
+    const snapshot = snapshotFixture();
+    snapshot.localBranches.push({
+      ...snapshot.localBranches[0],
+      name: "feature/hidden",
+      fullRef: "refs/heads/feature/hidden",
+      upstream: null,
+      worktreePath: null,
+      createdAt: "99",
+    });
+
+    const graph = buildGraph([snapshot]);
+    const repoNode = graph.nodes.find((node) => node.data.kind === "repository");
+
+    expect(graph.nodes.some((node) => node.data.title === "feature/hidden")).toBe(false);
+    expect(repoNode?.data.badges).toContain("1/2 branches");
+    expect(repoNode?.data.badges).toContain("1 hidden");
   });
 });
 

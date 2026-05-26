@@ -84,15 +84,6 @@ export interface CommandResult {
   changedPaths: string[];
 }
 
-export interface ActivityEntry {
-  id: string;
-  operation: string;
-  summary: string;
-  command?: string;
-  ok: boolean;
-  createdAt: string;
-}
-
 export function dirtyTotal(summary: DirtySummary) {
   return (
     summary.modified +

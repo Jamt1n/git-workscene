@@ -4,15 +4,19 @@ import type { RepositorySnapshot } from "../lib/types";
 interface RepoSidebarProps {
   snapshots: RepositorySnapshot[];
   loading: boolean;
+  selectedRepoPath: string | null;
   onAddRepository: () => void;
   onRefresh: () => void;
+  onSelectRepository: (path: string) => void;
 }
 
 export function RepoSidebar({
   snapshots,
   loading,
+  selectedRepoPath,
   onAddRepository,
   onRefresh,
+  onSelectRepository,
 }: RepoSidebarProps) {
   const worktreeCount = snapshots.reduce(
     (count, snapshot) => count + snapshot.worktrees.length,
@@ -57,14 +61,18 @@ export function RepoSidebar({
 
       <div className="repo-list">
         {snapshots.map((snapshot) => (
-          <section key={snapshot.repo.path} className="repo-row">
+          <button
+            key={snapshot.repo.path}
+            className={`repo-row ${selectedRepoPath === snapshot.repo.path ? "is-active" : ""}`}
+            onClick={() => onSelectRepository(snapshot.repo.path)}
+          >
             <strong>{snapshot.repo.displayName}</strong>
             <span>{snapshot.repo.path}</span>
             <div>
               <b>{snapshot.worktrees.length}</b> worktrees
               <b>{snapshot.localBranches.length}</b> branches
             </div>
-          </section>
+          </button>
         ))}
       </div>
     </aside>

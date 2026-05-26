@@ -11,14 +11,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import { ActivityLog } from "./ActivityLog";
 import type { GitFlowNode } from "../lib/graph";
-import type { ActivityEntry, SafetyPreview } from "../lib/types";
+import type { SafetyPreview } from "../lib/types";
 
 interface InspectorProps {
   selectedNode: GitFlowNode | null;
   preview: SafetyPreview | null;
-  activity: ActivityEntry[];
   onOpen: (path: string, kind: "finder" | "terminal" | "editor") => void;
   onFetch: (repoPath: string) => void;
   onPull: (path: string) => void;
@@ -34,7 +32,6 @@ interface InspectorProps {
 export function Inspector({
   selectedNode,
   preview,
-  activity,
   onOpen,
   onFetch,
   onPull,
@@ -47,7 +44,6 @@ export function Inspector({
   onCancelPreview,
 }: InspectorProps) {
   const data = selectedNode?.data;
-  const [activeTab, setActiveTab] = useState<"details" | "activity">("details");
   const [copiedField, setCopiedField] = useState<"path" | "branch" | null>(null);
   const pathValue = data ? (data.path ?? data.repoPath) : "";
 
@@ -63,27 +59,7 @@ export function Inspector({
         <h2>{data?.title ?? "Select a node"}</h2>
       </header>
 
-      <div className="inspector-tabs" role="tablist" aria-label="Inspector panels">
-        <button
-          className={activeTab === "details" ? "is-active" : ""}
-          role="tab"
-          aria-selected={activeTab === "details"}
-          onClick={() => setActiveTab("details")}
-        >
-          Details
-        </button>
-        <button
-          className={activeTab === "activity" ? "is-active" : ""}
-          role="tab"
-          aria-selected={activeTab === "activity"}
-          onClick={() => setActiveTab("activity")}
-        >
-          Activity
-          {activity.length ? <span>{activity.length}</span> : null}
-        </button>
-      </div>
-
-      {activeTab === "details" && data ? (
+      {data ? (
         <>
           <dl className="detail-list">
             <div>
@@ -200,13 +176,11 @@ export function Inspector({
             </section>
           ) : null}
         </>
-      ) : activeTab === "details" ? (
-        <p className="muted">Pick a repo, worktree, or branch to see its state and actions.</p>
       ) : (
-        <ActivityLog entries={activity} showHeader={false} />
+        <p className="muted">Pick a repo, worktree, or branch to see its state and actions.</p>
       )}
 
-      {activeTab === "details" && preview ? (
+      {preview ? (
         <section className={`preview preview-${preview.riskLevel}`}>
           <div className="preview-title">
             <ShieldAlert size={16} />

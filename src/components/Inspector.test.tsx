@@ -50,7 +50,6 @@ describe("Inspector", () => {
       <Inspector
         selectedNode={selectedNode()}
         preview={null}
-        activity={[]}
         {...handlers}
       />,
     );
