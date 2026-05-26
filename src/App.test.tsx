@@ -4,7 +4,7 @@ import App from "./App";
 import { snapshotFixture } from "./test/fixtures";
 
 const openMock = vi.fn();
-const addRepositoryMock = vi.fn();
+const addRepositoriesMock = vi.fn();
 const scanAllRepositoriesMock = vi.fn();
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 }));
 
 vi.mock("./lib/api", () => ({
-  addRepository: (...args: unknown[]) => addRepositoryMock(...args),
+  addRepositories: (...args: unknown[]) => addRepositoriesMock(...args),
   scanAllRepositories: (...args: unknown[]) => scanAllRepositoriesMock(...args),
   openPath: vi.fn(),
   fetchRepository: vi.fn(),
@@ -57,11 +57,24 @@ function namedSnapshot(displayName: string, path: string, createdAt: string) {
   return snapshot;
 }
 
+function repoRecord(displayName: string, path: string) {
+  return {
+    id: path,
+    path,
+    displayName,
+    createdAt: "1",
+    updatedAt: "1",
+    lastScannedAt: null,
+    pinned: false,
+    archived: false,
+  };
+}
+
 describe("App", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     openMock.mockResolvedValue(null);
-    addRepositoryMock.mockResolvedValue({
+    addRepositoriesMock.mockResolvedValue([{
       id: "/tmp/repo",
       path: "/tmp/repo",
       displayName: "repo",
@@ -70,7 +83,7 @@ describe("App", () => {
       lastScannedAt: null,
       pinned: false,
       archived: false,
-    });
+    }]);
     scanAllRepositoriesMock.mockResolvedValue([]);
   });
 
@@ -89,9 +102,9 @@ describe("App", () => {
       expect(openMock).toHaveBeenCalledWith({
         directory: true,
         multiple: false,
-        title: "Add Git repository",
+        title: "Add Git repository or workspace",
       });
-      expect(addRepositoryMock).toHaveBeenCalledWith("/tmp/repo");
+      expect(addRepositoriesMock).toHaveBeenCalledWith("/tmp/repo");
     });
     expect(await screen.findByTestId("canvas-view")).toBeInTheDocument();
     expect(screen.getByTestId("canvas-view")).toHaveTextContent("repo");
@@ -106,7 +119,7 @@ describe("App", () => {
     fireEvent.click(addButtons[0]);
 
     expect(await screen.findAllByText("dialog permission denied")).toHaveLength(1);
-    expect(addRepositoryMock).not.toHaveBeenCalled();
+    expect(addRepositoriesMock).not.toHaveBeenCalled();
   });
 
   it("adds a dropped repository path", async () => {
@@ -127,9 +140,34 @@ describe("App", () => {
     });
 
     await waitFor(() => {
-      expect(addRepositoryMock).toHaveBeenCalledWith("/tmp/repo");
+      expect(addRepositoriesMock).toHaveBeenCalledWith("/tmp/repo");
     });
     expect(await screen.findByTestId("canvas-view")).toBeInTheDocument();
+  });
+
+  it("adds a workspace folder and focuses the first discovered repository", async () => {
+    const alpha = namedSnapshot("alpha", "/tmp/work/alpha", "1");
+    const beta = namedSnapshot("beta", "/tmp/work/beta", "2");
+    openMock.mockResolvedValue("/tmp/work");
+    addRepositoriesMock.mockResolvedValue([
+      repoRecord("alpha", "/tmp/work/alpha"),
+      repoRecord("beta", "/tmp/work/beta"),
+    ]);
+    scanAllRepositoriesMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([beta, alpha]);
+
+    render(<App />);
+
+    const addButtons = await screen.findAllByRole("button", { name: "Add repository" });
+    fireEvent.click(addButtons[0]);
+
+    await waitFor(() => {
+      expect(addRepositoriesMock).toHaveBeenCalledWith("/tmp/work");
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("canvas-view")).toHaveTextContent("alpha");
+    });
   });
 
   it("focuses the canvas on the selected repository", async () => {

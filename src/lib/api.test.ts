@@ -15,6 +15,7 @@ describe("api wrappers", () => {
 
   it.each([
     ["addRepository", () => api.addRepository("/repo"), "add_repository", { path: "/repo" }],
+    ["addRepositories", () => api.addRepositories("/work"), "add_repositories", { path: "/work" }],
     ["listRepositories", () => api.listRepositories(), "list_repositories", undefined],
     ["removeRepository", () => api.removeRepository("/repo"), "remove_repository", { path: "/repo" }],
     ["scanAllRepositories", () => api.scanAllRepositories(), "scan_all_repositories", undefined],

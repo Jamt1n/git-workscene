@@ -10,6 +10,10 @@ export function addRepository(path: string) {
   return invoke<RepositoryRecord>("add_repository", { path });
 }
 
+export function addRepositories(path: string) {
+  return invoke<RepositoryRecord[]>("add_repositories", { path });
+}
+
 export function listRepositories() {
   return invoke<RepositoryRecord[]>("list_repositories");
 }

@@ -20,6 +20,17 @@ fn add_repository(path: String, state: State<'_, AppState>) -> Result<Repository
 }
 
 #[tauri::command]
+fn add_repositories(
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<RepositoryRecord>, String> {
+    git::discover_repository_inputs(&PathBuf::from(path))?
+        .into_iter()
+        .map(|root| state.storage.upsert_repository(&root))
+        .collect()
+}
+
+#[tauri::command]
 fn list_repositories(state: State<'_, AppState>) -> Result<Vec<RepositoryRecord>, String> {
     state.storage.list_repositories()
 }
@@ -126,6 +137,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             add_repository,
+            add_repositories,
             list_repositories,
             remove_repository,
             scan_repository,

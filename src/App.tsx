@@ -50,7 +50,6 @@ export default function App() {
 
   useEffect(() => {
     if (!snapshots.length) {
-      setSelectedRepoPath(null);
       setSelectedNode(null);
       return;
     }
@@ -75,7 +74,7 @@ export default function App() {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Add Git repository",
+        title: "Add Git repository or workspace",
       });
       if (typeof selected !== "string") return;
       await addSelectedRepository(selected);
@@ -86,9 +85,11 @@ export default function App() {
 
   async function addSelectedRepository(path: string) {
     try {
-      const repo = await api.addRepository(path);
+      const repos = await api.addRepositories(path);
+      if (repos[0]) {
+        selectRepository(repos[0].path);
+      }
       await refresh();
-      selectRepository(repo.path);
     } catch (reason) {
       pushFailure(reason);
     }

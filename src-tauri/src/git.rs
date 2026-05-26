@@ -18,6 +18,52 @@ pub fn discover_repository(path: &Path) -> Result<PathBuf, String> {
     Ok(PathBuf::from(output.trim()))
 }
 
+pub fn discover_repository_inputs(path: &Path) -> Result<Vec<PathBuf>, String> {
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", path.to_string_lossy()));
+    }
+
+    let canonical = path.canonicalize().map_err(|error| error.to_string())?;
+    let mut child_roots = Vec::new();
+    let mut seen = HashSet::new();
+
+    if canonical.is_dir() {
+        let mut children = canonical
+            .read_dir()
+            .map_err(|error| error.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| error.to_string())?;
+        children.sort_by_key(|entry| entry.file_name());
+
+        for entry in children {
+            let child = entry.path();
+            if !child.is_dir() {
+                continue;
+            }
+
+            let Ok(child_canonical) = child.canonicalize() else {
+                continue;
+            };
+            let Ok(root) = discover_repository(&child_canonical) else {
+                continue;
+            };
+            let Ok(root_canonical) = root.canonicalize() else {
+                continue;
+            };
+
+            if root_canonical == child_canonical && seen.insert(root_canonical.clone()) {
+                child_roots.push(root_canonical);
+            }
+        }
+    }
+
+    if !child_roots.is_empty() {
+        return Ok(child_roots);
+    }
+
+    discover_repository(&canonical).map(|root| vec![root])
+}
+
 pub fn scan_repository(repo: &RepositoryRecord) -> Result<RepositorySnapshot, String> {
     let root = discover_repository(Path::new(&repo.path))?;
     let mut normalized_repo = repo.clone();
@@ -593,6 +639,40 @@ mod tests {
         let error = discover_repository(temp.path()).unwrap_err();
 
         assert!(error.contains("rev-parse"));
+    }
+
+    #[test]
+    fn discovers_direct_child_repositories_for_workspace_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let workspace = temp.path().join("workspace");
+        let repo_a = workspace.join("repo-a");
+        let repo_b = workspace.join("repo-b");
+        let plain = workspace.join("plain");
+        std::fs::create_dir_all(&repo_a).unwrap();
+        std::fs::create_dir_all(&repo_b).unwrap();
+        std::fs::create_dir_all(&plain).unwrap();
+        git(&repo_a, &["init", "-b", "main"]);
+        git(&repo_b, &["init", "-b", "main"]);
+
+        let roots = discover_repository_inputs(&workspace).unwrap();
+        let names = roots
+            .iter()
+            .map(|root| root.file_name().unwrap().to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["repo-a", "repo-b"]);
+    }
+
+    #[test]
+    fn discovers_selected_repository_when_no_child_repositories_exist() {
+        let temp = tempfile::tempdir().unwrap();
+        let repo = temp.path().join("repo");
+        std::fs::create_dir_all(repo.join("src")).unwrap();
+        git(&repo, &["init", "-b", "main"]);
+
+        let roots = discover_repository_inputs(&repo).unwrap();
+
+        assert_eq!(roots, vec![repo.canonicalize().unwrap()]);
     }
 
     #[test]
