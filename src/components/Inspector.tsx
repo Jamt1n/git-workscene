@@ -3,7 +3,7 @@ import {
   FolderOpen,
   GitBranch,
   GitPullRequestArrow,
-  HardDriveDownload,
+  Download,
   ShieldAlert,
   Terminal,
   Trash2,
@@ -73,30 +73,37 @@ export function Inspector({
               <>
                 <button title="Reveal in Finder" onClick={() => onOpen(data.path!, "finder")}>
                   <FolderOpen size={16} />
+                  <span>Finder</span>
                 </button>
                 <button title="Open terminal" onClick={() => onOpen(data.path!, "terminal")}>
                   <Terminal size={16} />
+                  <span>Terminal</span>
                 </button>
                 <button title="Open editor" onClick={() => onOpen(data.path!, "editor")}>
                   <Code2 size={16} />
+                  <span>Editor</span>
                 </button>
               </>
             ) : null}
 
             <button title="Fetch" onClick={() => onFetch(data.repoPath)}>
-              <HardDriveDownload size={16} />
+              <Download size={16} />
+              <span>Fetch</span>
             </button>
 
             {data.kind === "worktree" && data.path ? (
               <>
                 <button title="Pull" onClick={() => onPull(data.path!)}>
                   <GitPullRequestArrow size={16} />
+                  <span>Pull</span>
                 </button>
                 <button title="Push" onClick={() => onPush(data.path!)}>
                   <GitBranch size={16} />
+                  <span>Push</span>
                 </button>
                 <button title="Stash" onClick={() => onStash(data.path!)}>
                   <ShieldAlert size={16} />
+                  <span>Stash</span>
                 </button>
                 <button
                   className="danger"
@@ -104,6 +111,7 @@ export function Inspector({
                   onClick={() => onPreviewDeleteWorktree(data.path!)}
                 >
                   <Trash2 size={16} />
+                  <span>Delete</span>
                 </button>
               </>
             ) : null}
@@ -115,6 +123,7 @@ export function Inspector({
                   onClick={() => onCreateWorktree(data.repoPath, data.branch!)}
                 >
                   <GitBranch size={16} />
+                  <span>Worktree</span>
                 </button>
                 <button
                   className="danger"
@@ -122,10 +131,20 @@ export function Inspector({
                   onClick={() => onPreviewDeleteBranch(data.repoPath, data.branch!)}
                 >
                   <Trash2 size={16} />
+                  <span>Delete</span>
                 </button>
               </>
             ) : null}
           </div>
+
+          {Array.isArray(data.diagnostics) && data.diagnostics.length ? (
+            <section className="diagnostics">
+              <strong>Diagnostics</strong>
+              {data.diagnostics.map((diagnostic) => (
+                <p key={diagnostic}>{diagnostic}</p>
+              ))}
+            </section>
+          ) : null}
         </>
       ) : (
         <p className="muted">Pick a repo, worktree, or branch to see its state and actions.</p>

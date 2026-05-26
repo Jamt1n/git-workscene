@@ -469,6 +469,7 @@ impl PartialWorktree {
             .path
             .ok_or_else(|| "worktree path missing".to_string())?;
         let path_buf = PathBuf::from(&path);
+        let path_exists = path_buf.exists();
         Ok(WorktreeSnapshot {
             path,
             branch: self.branch,
@@ -476,8 +477,16 @@ impl PartialWorktree {
             detached: self.detached,
             locked: self.locked,
             prunable: self.prunable,
-            dirty_summary: dirty_summary(&path_buf)?,
-            last_commit: last_commit(&path_buf),
+            dirty_summary: if path_exists {
+                dirty_summary(&path_buf)?
+            } else {
+                DirtySummary::default()
+            },
+            last_commit: if path_exists {
+                last_commit(&path_buf)
+            } else {
+                None
+            },
         })
     }
 }
@@ -551,6 +560,24 @@ mod tests {
             .stashes
             .iter()
             .any(|stash| stash.message.contains("sandbox stash")));
+    }
+
+    #[test]
+    fn scans_prunable_worktree_whose_path_is_missing() {
+        let sandbox = SandboxRepo::create();
+        std::fs::remove_dir_all(&sandbox.worktree).unwrap();
+        let output = run_git(&sandbox.root, &["worktree", "list", "--porcelain"]).unwrap();
+        assert!(output.contains("prunable"));
+
+        let snapshot = scan_repository(&RepositoryRecord::from_path(&sandbox.root)).unwrap();
+
+        let stale = snapshot
+            .worktrees
+            .iter()
+            .find(|worktree| worktree.branch.as_deref() == Some("feature/demo"))
+            .unwrap();
+        assert!(stale.prunable);
+        assert_eq!(stale.dirty_summary.total(), 0);
     }
 
     #[test]

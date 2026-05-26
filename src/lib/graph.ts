@@ -13,6 +13,7 @@ export interface GitNodeData extends Record<string, unknown> {
   path?: string;
   branch?: string;
   isRemote?: boolean;
+  diagnostics?: string[];
 }
 
 export type GitFlowNode = Node<GitNodeData, "gitNode">;
@@ -44,6 +45,7 @@ export function buildGraph(snapshots: RepositorySnapshot[]): GitGraph {
         ],
         repoPath: snapshot.repo.path,
         path: snapshot.repo.path,
+        diagnostics: snapshot.diagnostics,
       },
     });
 
