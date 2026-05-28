@@ -331,17 +331,6 @@ export function Inspector({
     data?.kind === "branch" && data.branch
       ? summarizeCommitInsight(data, commitRows, hasMoreCommits)
       : null;
-  const collapsedCommitCount = commitInsight
-    ? commitRows.length - commitInsight.visibleRows.length
-    : 0;
-  const showCollapsedCommitNote = Boolean(
-    commitInsight?.comparisonMode &&
-      commitInsight.visibleRows.length === 0 &&
-      collapsedCommitCount > 0,
-  );
-  const loadMoreCommitLabel = showCollapsedCommitNote
-    ? "Load more matching commits"
-    : "Load more";
 
   return (
     <>
@@ -688,12 +677,6 @@ export function Inspector({
                       )}
                     </div>
                   ) : null}
-                  {showCollapsedCommitNote ? (
-                    <p className="commit-collapsed-note">
-                      {collapsedCommitCount} matching commit{" "}
-                      {collapsedCommitCount === 1 ? "row" : "rows"} collapsed.
-                    </p>
-                  ) : null}
                   {!commitLoading && !commitRows.length && !commitError ? (
                     <p className="muted">No commits.</p>
                   ) : null}
@@ -704,7 +687,7 @@ export function Inspector({
                       className="commit-load-more"
                       onClick={() => void loadBranchCommits(commitRows.length)}
                     >
-                      {loadMoreCommitLabel}
+                      Load more
                     </button>
                   ) : null}
                 </div>
@@ -1328,9 +1311,9 @@ function summarizeCommitInsight(
       tone: "synced",
       title: ahead || behind ? `Tracking ${ahead} ahead / ${behind} behind` : "In sync",
       detail: trackingDetail(upstream, ahead, behind, rows.length, hasMore),
-      visibleRows: [],
+      visibleRows: rows,
       latestCommit,
-      comparisonMode: true,
+      comparisonMode: false,
     };
   }
 

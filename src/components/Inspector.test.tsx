@@ -719,7 +719,7 @@ describe("Inspector", () => {
     ).toBeInTheDocument();
   });
 
-  it("summarizes matching local and remote commits instead of listing every row", async () => {
+  it("shows matching local commits as a readable timeline", async () => {
     handlers.onLoadBranchCommits.mockResolvedValue({
       commits: [
         {
@@ -744,12 +744,13 @@ describe("Inspector", () => {
 
     expect(await screen.findByText("In sync")).toBeInTheDocument();
     expect(screen.getByText("Local history matches origin/feature/demo.")).toBeInTheDocument();
-    expect(screen.getByText("Latest local")).toBeInTheDocument();
+    expect(screen.getByText("same tip")).toBeInTheDocument();
+    expect(screen.queryByText("Latest local")).not.toBeInTheDocument();
     expect(screen.queryByText("Remote")).not.toBeInTheDocument();
     expect(document.querySelector(".commit-compare-row")).not.toBeInTheDocument();
   });
 
-  it("loads more matching commit pages without rendering duplicate comparison rows", async () => {
+  it("loads more matching commit pages into the local timeline", async () => {
     handlers.onLoadBranchCommits.mockImplementation(
       async (_repoPath: string, _branch: string, offset: number) => ({
         commits: [
@@ -775,14 +776,15 @@ describe("Inspector", () => {
     );
 
     expect(await screen.findByText("Latest 1 commits match origin/feature/demo.")).toBeInTheDocument();
-    expect(screen.getByText("1 matching commit row collapsed.")).toBeInTheDocument();
+    expect(screen.getByText("same tip")).toBeInTheDocument();
+    expect(screen.queryByText(/matching commit row/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Load more matching commits" }));
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
 
     await waitFor(() => {
       expect(screen.getByText("Local history matches origin/feature/demo.")).toBeInTheDocument();
     });
-    expect(screen.getByText("2 matching commit rows collapsed.")).toBeInTheDocument();
+    expect(screen.getByText("same follow-up")).toBeInTheDocument();
     expect(handlers.onLoadBranchCommits).toHaveBeenCalledWith(
       "/tmp/repo",
       "feature/demo",
@@ -796,7 +798,7 @@ describe("Inspector", () => {
       30,
     );
     expect(document.querySelector(".commit-compare-row")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Load more matching commits" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 
   it("loads the next commit page from the commit panel", async () => {

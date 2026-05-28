@@ -1,0 +1,66 @@
+<svg width="1200" height="520" viewBox="0 0 1200 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Git Workscene workspace graph</title>
+  <desc id="desc">A dark canvas showing repositories, worktrees, branches, and Git relationship lines.</desc>
+  <rect width="1200" height="520" rx="28" fill="#11100E"/>
+  <path d="M0 0h1200v520H0z" fill="url(#bg)"/>
+  <g opacity=".35">
+    <path d="M80 0v520M160 0v520M240 0v520M320 0v520M400 0v520M480 0v520M560 0v520M640 0v520M720 0v520M800 0v520M880 0v520M960 0v520M1040 0v520M1120 0v520" stroke="#302C26"/>
+    <path d="M0 80h1200M0 160h1200M0 240h1200M0 320h1200M0 400h1200M0 480h1200" stroke="#302C26"/>
+  </g>
+  <g filter="url(#soft)">
+    <path d="M322 246C428 246 428 145 535 145" stroke="#63D6B5" stroke-width="4"/>
+    <path d="M322 246C433 246 425 248 535 248" stroke="#63D6B5" stroke-width="4"/>
+    <path d="M322 246C433 246 421 352 535 352" stroke="#63D6B5" stroke-width="4" stroke-dasharray="10 10"/>
+    <path d="M782 145C864 145 864 112 946 112" stroke="#F5F1E8" stroke-width="3" opacity=".65"/>
+    <path d="M782 248C864 248 864 248 946 248" stroke="#E25D7A" stroke-width="3" opacity=".55"/>
+    <path d="M782 352C864 352 864 388 946 388" stroke="#E25D7A" stroke-width="3" opacity=".55"/>
+  </g>
+  <g>
+    <rect x="92" y="168" width="230" height="156" rx="16" fill="#1D1A16" stroke="#F3B35B" stroke-width="2"/>
+    <text x="120" y="210" fill="#AFA699" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">REPOSITORY</text>
+    <text x="120" y="248" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800">git-workscene</text>
+    <text x="120" y="282" fill="#B8B0A2" font-family="Inter, Arial, sans-serif" font-size="18">visual Git workspace</text>
+    <rect x="120" y="296" width="92" height="28" rx="14" fill="#2A2621" stroke="#514A40"/>
+    <text x="140" y="316" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="15">tracked</text>
+  </g>
+  <g>
+    <rect x="535" y="80" width="247" height="130" rx="16" fill="#1A211D" stroke="#2E8C75" stroke-width="2"/>
+    <text x="560" y="120" fill="#AFA699" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800">WORKTREE</text>
+    <text x="560" y="154" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800">feature-panel</text>
+    <text x="560" y="184" fill="#B8B0A2" font-family="Inter, Arial, sans-serif" font-size="17">clean / active</text>
+  </g>
+  <g>
+    <rect x="535" y="183" width="247" height="130" rx="16" fill="#1A211D" stroke="#2E8C75" stroke-width="2"/>
+    <text x="560" y="223" fill="#AFA699" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800">WORKTREE</text>
+    <text x="560" y="257" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800">pricing-fix</text>
+    <text x="560" y="287" fill="#B8B0A2" font-family="Inter, Arial, sans-serif" font-size="17">3 dirty files</text>
+  </g>
+  <g>
+    <rect x="535" y="286" width="247" height="130" rx="16" fill="#1A211D" stroke="#2E8C75" stroke-width="2" stroke-dasharray="9 9"/>
+    <text x="560" y="326" fill="#AFA699" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800">WORKTREE</text>
+    <text x="560" y="360" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800">stale-review</text>
+    <text x="560" y="390" fill="#B8B0A2" font-family="Inter, Arial, sans-serif" font-size="17">prunable</text>
+  </g>
+  <g>
+    <rect x="946" y="60" width="178" height="104" rx="14" fill="#21181A" stroke="#B34761"/>
+    <text x="970" y="96" fill="#AFA699" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">BRANCH</text>
+    <text x="970" y="130" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="800">main</text>
+    <rect x="946" y="196" width="178" height="104" rx="14" fill="#21181A" stroke="#B34761"/>
+    <text x="970" y="232" fill="#AFA699" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">BRANCH</text>
+    <text x="970" y="266" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="800">hotfix</text>
+    <rect x="946" y="332" width="178" height="104" rx="14" fill="#21181A" stroke="#B34761"/>
+    <text x="970" y="368" fill="#AFA699" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">BRANCH</text>
+    <text x="970" y="402" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="800">agent-task</text>
+  </g>
+  <text x="92" y="82" fill="#63D6B5" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="2">GIT WORKSCENE</text>
+  <text x="92" y="122" fill="#F5F1E8" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="800">Map local Git work like a control room.</text>
+  <defs>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(620 230) rotate(90) scale(390 720)">
+      <stop stop-color="#1F2B25"/>
+      <stop offset="1" stop-color="#11100E" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="0" y="0" width="1200" height="520" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity=".35"/>
+    </filter>
+  </defs>
+</svg>

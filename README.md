@@ -1,31 +1,54 @@
-# Git Workscene
+<p align="center">
+  <img src="assets/brand/git-workscene-logo.svg" width="96" alt="Git Workscene logo">
+</p>
 
-[![CI](https://github.com/Jamt1n/git-workscene/actions/workflows/ci.yml/badge.svg)](https://github.com/Jamt1n/git-workscene/actions/workflows/ci.yml)
+<h1 align="center">Git Workscene</h1>
 
-Git Workscene is a visual desktop workspace for local Git repositories, branches, worktrees, stashes, and dirty file changes. It is built for developers who run several parallel coding tasks and need a safer way to understand what each local workspace is doing.
+<p align="center">
+  A visual desktop workspace for local Git repositories, branches, worktrees, stashes, and file changes.
+</p>
 
-![Git Workscene logo](assets/brand/git-workscene-logo.svg)
+<p align="center">
+  <a href="https://github.com/Jamt1n/git-workscene/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Jamt1n/git-workscene/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Jamt1n/git-workscene/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/Jamt1n/git-workscene?style=flat-square"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/Jamt1n/git-workscene?style=flat-square"></a>
+  <img alt="Built with Tauri" src="https://img.shields.io/badge/Tauri-v2-63D6B5?style=flat-square">
+</p>
+
+![Git Workscene workspace graph](assets/brand/readme-hero.svg)
+
+Git Workscene turns local Git work into a map. It is built for developers who keep multiple repositories, worktrees, and AI-assisted tasks running in parallel, and want a calmer way to see what is checked out, dirty, stale, ahead, behind, or ready to clean.
 
 ## Highlights
 
-- Add one repository or a whole workspace folder and discover child Git repositories.
-- See repositories, worktrees, active branches, local branch state, stashes, and dirty file changes in one graph.
+- Add a single Git repository or a whole workspace folder and discover child repositories.
+- See repositories, worktrees, active branches, stashes, dirty files, and branch relationships on one canvas.
 - Checkout branches, create worktrees, pull, push, fetch, stash, and open paths in Finder, Terminal, or editor.
+- Inspect dirty file changes before switching context.
+- Review branch commits and compare local history with the tracked remote branch.
 - Preview destructive actions before deleting worktrees or branches.
-- Clean local branches merged into the repository default branch.
-- Compare local branch commits with their tracked remote branch.
-- Drag repositories in the sidebar to keep your working set ordered.
-- Check for app updates from GitHub Releases.
+- Clean local branches that are already merged into the repository default branch.
+- Drag repositories in the sidebar to keep your working set in your own order.
+- Check for signed app updates from GitHub Releases.
 
-## Safety Model
+## Product Principles
 
-Git Workscene favors explicit actions over hidden automation:
+- **Local first.** The app reads your local Git state and does not require a hosted Git provider.
+- **Safety first.** Destructive Git operations show an explicit preview before they run.
+- **No mystery automation.** Fetch, pull, push, checkout, cleanup, and update installation stay user-triggered.
+- **Worktree aware.** Main working trees are protected, stale metadata is detected, and prunable worktrees are surfaced clearly.
+- **Built for parallel work.** The UI is optimized for many small task branches, not just one linear history.
 
-- destructive Git operations show a confirmation preview first;
-- cleanup operations fetch the latest remote default branch before deciding what is safe;
-- the main working tree is protected from worktree removal;
-- stale worktree metadata can be pruned only after validation;
-- update installation is user-triggered from the app.
+## Download
+
+Download the latest signed builds from [GitHub Releases](https://github.com/Jamt1n/git-workscene/releases/latest).
+
+Current release assets include:
+
+- macOS Apple Silicon and Intel DMG bundles
+- Windows NSIS and MSI installers
+- Linux AppImage, Debian, and RPM packages
+- Tauri updater metadata and signatures
 
 ## Development
 
@@ -34,7 +57,7 @@ Requirements:
 - Node.js 20 or newer
 - Rust stable
 - Git
-- Tauri platform prerequisites for your OS
+- Tauri platform prerequisites for your operating system
 
 Install and run:
 
@@ -59,7 +82,13 @@ npm run tauri build -- --bundles app
 
 ## Releases and Updates
 
-GitHub Actions builds release bundles and Tauri updater artifacts. See [docs/UPDATES.md](docs/UPDATES.md) for the signing keys and release checklist.
+GitHub Actions builds desktop bundles and Tauri updater artifacts for every `v*` tag. The updater endpoint is backed by the latest GitHub Release:
+
+```text
+https://github.com/Jamt1n/git-workscene/releases/latest/download/latest.json
+```
+
+See [docs/UPDATES.md](docs/UPDATES.md) for the release checklist and signing-key setup.
 
 ## Contributing
 
