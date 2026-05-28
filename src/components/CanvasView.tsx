@@ -78,7 +78,14 @@ export function CanvasView({ graph, selectedId, onSelect }: CanvasViewProps) {
 function GitNodeCard({ data, selected }: NodeProps<GitFlowNode>) {
   const node = data as GitNodeData;
   return (
-    <div className={`git-node git-node-${node.kind} ${selected ? "is-selected" : ""}`}>
+    <div
+      className={[
+        "git-node",
+        `git-node-${node.kind}`,
+        selected ? "is-selected" : "",
+        node.isActive ? "is-current-branch" : "",
+      ].filter(Boolean).join(" ")}
+    >
       {node.handles?.target.map((id, index) => (
         <Handle
           key={id}
@@ -95,7 +102,7 @@ function GitNodeCard({ data, selected }: NodeProps<GitFlowNode>) {
       <div className="node-subtitle">{node.subtitle}</div>
       <div className="node-badges">
         {node.badges.map((badge) => (
-          <span key={badge}>{badge}</span>
+          <span data-badge={badge} key={badge}>{badge}</span>
         ))}
       </div>
       {node.handles?.source.map((id, index) => (
@@ -162,7 +169,6 @@ function LineLegend() {
       <LegendItem tone="dirty" label="Dirty worktree" note="uncommitted changes" />
       <LegendItem tone="checked" label="Worktree -> Branch" note="checked out branch" />
       <LegendItem tone="branch" label="Repository -> Branch" note="local branch" />
-      <LegendItem tone="upstream" label="Branch -> Remote" note="upstream tracking" />
       <LegendItem tone="stash" label="Repository -> Stash" note="saved stash" />
     </aside>
   );
@@ -173,7 +179,7 @@ function LegendItem({
   label,
   note,
 }: {
-  tone: "worktree" | "dirty" | "checked" | "branch" | "upstream" | "stash";
+  tone: "worktree" | "dirty" | "checked" | "branch" | "stash";
   label: string;
   note: string;
 }) {

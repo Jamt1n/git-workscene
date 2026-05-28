@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  CommitPage,
   CommandResult,
+  FileChangeItem,
   RepositoryRecord,
   RepositorySnapshot,
   SafetyPreview,
@@ -30,16 +32,20 @@ export function scanRepository(path: string) {
   return invoke<RepositorySnapshot>("scan_repository", { path });
 }
 
-export function deleteWorktreePreview(worktreePath: string) {
-  return invoke<SafetyPreview>("delete_worktree_preview", { worktreePath });
+export function deleteWorktreePreview(repoPath: string, worktreePath: string) {
+  return invoke<SafetyPreview>("delete_worktree_preview", { repoPath, worktreePath });
 }
 
 export function deleteBranchPreview(repoPath: string, branch: string) {
   return invoke<SafetyPreview>("delete_branch_preview", { repoPath, branch });
 }
 
-export function cleanupMergedBranchesPreview(repoPath: string, targetBranch: string) {
-  return invoke<SafetyPreview>("cleanup_merged_branches_preview", { repoPath, targetBranch });
+export function cleanupMergedBranchesPreview(repoPath: string) {
+  return invoke<SafetyPreview>("cleanup_merged_branches_preview", { repoPath });
+}
+
+export function branchesOutsideTargetsPreview(repoPath: string) {
+  return invoke<SafetyPreview>("branches_outside_targets_preview", { repoPath });
 }
 
 export function createWorktree(
@@ -56,16 +62,45 @@ export function createWorktree(
   });
 }
 
-export function deleteWorktree(worktreePath: string, force: boolean) {
-  return invoke<CommandResult>("delete_worktree", { worktreePath, force });
+export function deleteWorktree(repoPath: string, worktreePath: string, force: boolean) {
+  return invoke<CommandResult>("delete_worktree", { repoPath, worktreePath, force });
 }
 
 export function deleteBranch(repoPath: string, branch: string, force: boolean) {
   return invoke<CommandResult>("delete_branch", { repoPath, branch, force });
 }
 
-export function cleanupMergedBranches(repoPath: string, targetBranch: string) {
-  return invoke<CommandResult>("cleanup_merged_branches", { repoPath, targetBranch });
+export function checkoutBranch(repoPath: string, branch: string) {
+  return invoke<CommandResult>("checkout_branch", { repoPath, branch });
+}
+
+export function fastForwardBranch(repoPath: string, branch: string) {
+  return invoke<CommandResult>("fast_forward_branch", { repoPath, branch });
+}
+
+export function cleanupMergedBranches(repoPath: string) {
+  return invoke<CommandResult>("cleanup_merged_branches", { repoPath });
+}
+
+export function cleanupSelectedMergedBranches(repoPath: string, branches: string[]) {
+  return invoke<CommandResult>("cleanup_selected_merged_branches", { repoPath, branches });
+}
+
+export function deleteSelectedBranches(repoPath: string, branches: string[], force: boolean) {
+  return invoke<CommandResult>("delete_selected_branches", { repoPath, branches, force });
+}
+
+export function listBranchCommits(
+  repoPath: string,
+  branch: string,
+  offset: number,
+  limit: number,
+) {
+  return invoke<CommitPage>("list_branch_commits", { repoPath, branch, offset, limit });
+}
+
+export function listWorktreeChanges(worktreePath: string) {
+  return invoke<FileChangeItem[]>("list_worktree_changes", { worktreePath });
 }
 
 export function fetchRepository(repoPath: string) {

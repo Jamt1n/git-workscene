@@ -7,14 +7,13 @@ import type {
 } from "./types";
 import { dirtyTotal } from "./types";
 
-export type GitNodeKind = "repository" | "worktree" | "branch" | "remote" | "stash";
+export type GitNodeKind = "repository" | "worktree" | "branch" | "stash";
 export type BranchMode = "all" | "focused";
 export type GitEdgeKind =
   | "worktree"
   | "dirtyWorktree"
   | "checkedOut"
   | "branch"
-  | "upstream"
   | "stash";
 
 export interface GitNodeData extends Record<string, unknown> {
@@ -26,7 +25,13 @@ export interface GitNodeData extends Record<string, unknown> {
   repoPath: string;
   path?: string;
   branch?: string;
-  isRemote?: boolean;
+  upstream?: string;
+  defaultBranch?: string;
+  isActive?: boolean;
+  isMainWorktree?: boolean;
+  ahead?: number;
+  behind?: number;
+  dirtyCount?: number;
   diagnostics?: string[];
 }
 
@@ -60,6 +65,17 @@ const defaultGraphOptions: GitGraphOptions = {
   showStashes: false,
 };
 
+const repoX = 0;
+const worktreeX = 340;
+const branchStartX = 680;
+const branchColumnWidth = 280;
+const stashGapX = 340;
+const worktreeRowHeight = 132;
+const branchRowHeight = 104;
+const stashRowHeight = 92;
+const branchRowsPerColumn = 9;
+const projectGap = 220;
+
 const edgeMarker = {
   type: MarkerType.ArrowClosed,
   width: 14,
@@ -71,7 +87,6 @@ const edgeColors = {
   worktree: "rgba(99,214,181,0.74)",
   checkedOut: "rgba(245,241,232,0.66)",
   branch: "rgba(226,93,122,0.48)",
-  upstream: "rgba(107,180,255,0.56)",
   stash: "rgba(243,179,91,0.58)",
 };
 
@@ -80,7 +95,6 @@ function edgeStyle(kind: keyof typeof edgeColors) {
     stroke: edgeColors[kind],
     strokeWidth: kind === "worktree" ? 1.8 : 1.35,
     opacity: kind === "branch" ? 0.5 : 0.82,
-    strokeDasharray: kind === "upstream" ? "7 5" : undefined,
   };
 }
 
@@ -91,26 +105,27 @@ export function buildGraph(
   const nodes: GitFlowNode[] = [];
   const edges: GitFlowEdge[] = [];
   const nodeHandles = new Map<string, GitNodeHandles>();
+  let baseY = 0;
 
-  sortByCreatedDesc(snapshots, (snapshot) => snapshot.repo.createdAt).forEach((snapshot, repoIndex) => {
+  sortByCreatedDesc(snapshots, (snapshot) => snapshot.repo.createdAt).forEach((snapshot) => {
     const worktrees = sortByCreatedDesc(snapshot.worktrees, (worktree) => worktree.createdAt);
     const localBranches =
       options.branchMode === "all"
         ? sortByCreatedDesc(snapshot.localBranches, (branch) => branch.createdAt)
         : visibleLocalBranches(snapshot.localBranches, worktrees);
-    const remoteBranches = visibleRemoteBranches(snapshot.remoteBranches, localBranches);
+    const branchColumns = columnCount(localBranches.length, branchRowsPerColumn);
+    const visibleStashCount = options.showStashes ? snapshot.stashes.length : 0;
     const worktreeByBranch = new Map(
       worktrees
         .filter((worktree) => worktree.branch)
         .map((worktree) => [worktree.branch, worktree] as const),
     );
     const hiddenBranchCount = snapshot.localBranches.length - localBranches.length;
-    const baseY = repoIndex * 420;
     const repoId = repoNodeId(snapshot.repo.path);
     nodes.push({
       id: repoId,
       type: "gitNode",
-      position: { x: 0, y: baseY },
+      position: { x: repoX, y: baseY },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
       draggable: false,
@@ -129,6 +144,7 @@ export function buildGraph(
         ].filter((badge): badge is string => Boolean(badge)),
         repoPath: snapshot.repo.path,
         path: snapshot.repo.path,
+        defaultBranch: snapshot.defaultBranch ?? undefined,
         diagnostics: snapshot.diagnostics,
       },
     });
@@ -154,9 +170,9 @@ export function buildGraph(
 
     localBranches.forEach((branch, index) => {
       const nodeId = branchNodeId(snapshot.repo.path, branch.name);
-      nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, false));
-
       const worktree = worktreeByBranch.get(branch.name);
+      nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, worktree));
+
       if (worktree) {
         edges.push({
           id: `${worktreeNodeId(worktree.path)}->${nodeId}`,
@@ -184,35 +200,12 @@ export function buildGraph(
           style: edgeStyle("branch"),
         });
       }
-
-      if (branch.upstream) {
-        edges.push({
-          id: `${nodeId}->${remoteNodeId(snapshot.repo.path, branch.upstream)}`,
-          source: nodeId,
-          target: remoteNodeId(snapshot.repo.path, branch.upstream),
-          sourceHandle: addNodeHandle(nodeHandles, nodeId, "source"),
-          targetHandle: addNodeHandle(
-            nodeHandles,
-            remoteNodeId(snapshot.repo.path, branch.upstream),
-            "target",
-          ),
-          type: "gitCurve",
-          className: "git-edge git-edge-upstream",
-          data: edgeData("upstream"),
-          markerEnd: edgeMarker,
-          style: edgeStyle("upstream"),
-        });
-      }
-    });
-
-    remoteBranches.forEach((branch, index) => {
-      nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, true));
     });
 
     if (options.showStashes) {
       sortByCreatedDesc(snapshot.stashes, (stash) => stash.createdAt).forEach((stash, index) => {
         const nodeId = stashNodeId(snapshot.repo.path, stash.id);
-        nodes.push(stashNode(snapshot.repo.path, stash, index, baseY));
+        nodes.push(stashNode(snapshot.repo.path, stash, index, baseY, branchColumns));
         edges.push({
           id: `${repoId}->${nodeId}`,
           source: repoId,
@@ -227,6 +220,8 @@ export function buildGraph(
         });
       });
     }
+
+    baseY += projectHeight(worktrees.length, localBranches.length, visibleStashCount) + projectGap;
   });
 
   return {
@@ -248,17 +243,18 @@ function worktreeNode(
   baseY: number,
 ): GitFlowNode {
   const dirty = dirtyTotal(worktree.dirtySummary);
+  const isMainWorktree = worktree.path.replace(/\/+$/, "") === repoPath.replace(/\/+$/, "");
   const badges = [
     dirty ? `${dirty} dirty` : "clean",
     worktree.locked ? "locked" : "open",
-    worktree.prunable ? "prunable" : "active",
+    worktree.prunable ? "prunable" : isMainWorktree ? "main" : "active",
     worktree.scanError ? "scan issue" : "",
   ].filter(Boolean);
 
   return {
     id: worktreeNodeId(worktree.path),
     type: "gitNode",
-    position: { x: 340, y: baseY + index * 132 },
+    position: { x: worktreeX, y: baseY + index * worktreeRowHeight },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     draggable: false,
@@ -270,6 +266,8 @@ function worktreeNode(
       repoPath,
       path: worktree.path,
       branch: worktree.branch ?? undefined,
+      isMainWorktree,
+      dirtyCount: dirty,
       diagnostics: worktree.scanError ? [worktree.scanError] : undefined,
     },
   };
@@ -280,24 +278,34 @@ function branchNode(
   branch: BranchSnapshot,
   index: number,
   baseY: number,
-  remote: boolean,
+  worktree?: WorktreeSnapshot,
 ): GitFlowNode {
+  const column = Math.floor(index / branchRowsPerColumn);
+  const row = index % branchRowsPerColumn;
+
   return {
-    id: remote ? remoteNodeId(repoPath, branch.name) : branchNodeId(repoPath, branch.name),
+    id: branchNodeId(repoPath, branch.name),
     type: "gitNode",
-    position: { x: remote ? 980 : 680, y: baseY + index * 104 },
+    position: {
+      x: branchStartX + column * branchColumnWidth,
+      y: baseY + row * branchRowHeight,
+    },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     draggable: false,
     data: {
-      kind: remote ? "remote" : "branch",
+      kind: "branch",
       title: branch.name,
       subtitle: branch.lastCommit?.subject ?? branch.fullRef,
       badges: branchBadges(branch),
       repoPath,
       branch: branch.name,
+      upstream: branch.upstream ?? undefined,
       path: branch.worktreePath ?? undefined,
-      isRemote: remote,
+      isActive: Boolean(branch.worktreePath),
+      ahead: branch.ahead,
+      behind: branch.behind,
+      dirtyCount: worktree ? dirtyTotal(worktree.dirtySummary) : 0,
     },
   };
 }
@@ -306,9 +314,9 @@ function branchBadges(branch: BranchSnapshot) {
   const badges = [];
   if (branch.ahead) badges.push(`${branch.ahead} ahead`);
   if (branch.behind) badges.push(`${branch.behind} behind`);
-  if (branch.worktreePath) badges.push("worktree");
+  if (branch.worktreePath) badges.push("active");
   if (branch.isMergedToDefault) badges.push("merged");
-  if (!badges.length) badges.push(branch.isRemote ? "remote" : "local");
+  if (!badges.length) badges.push(branch.upstream ? "tracked" : "local");
   return badges;
 }
 
@@ -329,10 +337,6 @@ function edgeData(kind: GitEdgeKind): GitEdgeData {
     branch: {
       label: "Repository -> Branch",
       description: "Local branch exists but is not checked out by a worktree",
-    },
-    upstream: {
-      label: "Branch -> Remote",
-      description: "Local branch tracks this remote upstream",
     },
     stash: {
       label: "Repository -> Stash",
@@ -365,11 +369,15 @@ function stashNode(
   stash: StashSnapshot,
   index: number,
   baseY: number,
+  branchColumns: number,
 ): GitFlowNode {
   return {
     id: stashNodeId(repoPath, stash.id),
     type: "gitNode",
-    position: { x: 1280, y: baseY + index * 92 },
+    position: {
+      x: branchStartX + branchColumns * branchColumnWidth + stashGapX,
+      y: baseY + index * stashRowHeight,
+    },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     draggable: false,
@@ -393,10 +401,6 @@ export function worktreeNodeId(path: string) {
 
 export function branchNodeId(repoPath: string, branch: string) {
   return `branch:${repoPath}:${branch}`;
-}
-
-export function remoteNodeId(repoPath: string, branch: string) {
-  return `remote:${repoPath}:${branch}`;
 }
 
 export function stashNodeId(repoPath: string, stash: string) {
@@ -428,18 +432,17 @@ function visibleLocalBranches(
   );
 }
 
-function visibleRemoteBranches(
-  branches: BranchSnapshot[],
-  localBranches: BranchSnapshot[],
-) {
-  const upstreams = new Set(
-    localBranches
-      .map((branch) => branch.upstream)
-      .filter((branch): branch is string => Boolean(branch)),
-  );
+function columnCount(itemCount: number, rowsPerColumn: number) {
+  return Math.max(1, Math.ceil(itemCount / rowsPerColumn));
+}
 
-  return sortByCreatedDesc(branches, (branch) => branch.createdAt).filter((branch) =>
-    upstreams.has(branch.name),
+function projectHeight(worktreeCount: number, branchCount: number, stashCount: number) {
+  const branchRows = Math.min(branchCount, branchRowsPerColumn);
+  return Math.max(
+    160,
+    worktreeCount * worktreeRowHeight,
+    branchRows * branchRowHeight,
+    stashCount * stashRowHeight,
   );
 }
 

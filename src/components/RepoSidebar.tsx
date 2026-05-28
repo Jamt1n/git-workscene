@@ -1,4 +1,28 @@
-import { Archive, FolderPlus, GitBranch, LoaderCircle, RefreshCw, Search } from "lucide-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  Archive,
+  Bell,
+  FolderPlus,
+  GitBranch,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+  Trash2,
+} from "lucide-react";
+import { useMemo, useState, type CSSProperties } from "react";
 import type { BranchMode } from "../lib/graph";
 import type { RepositorySnapshot } from "../lib/types";
 
@@ -6,12 +30,16 @@ interface RepoSidebarProps {
   snapshots: RepositorySnapshot[];
   loading: boolean;
   adding: boolean;
+  updateStatus: "idle" | "checking" | "available" | "installing" | "ready" | "up-to-date" | "error";
   selectedRepoPath: string | null;
   branchMode: BranchMode;
   showStashes: boolean;
   onAddRepository: () => void;
   onRefresh: () => void;
+  onCheckForUpdates: () => void;
   onSelectRepository: (path: string) => void;
+  onRemoveRepository: (path: string) => void;
+  onReorderRepositories: (sourcePath: string, targetPath: string) => void;
   onBranchModeChange: (mode: BranchMode) => void;
   onShowStashesChange: (show: boolean) => void;
 }
@@ -20,23 +48,43 @@ export function RepoSidebar({
   snapshots,
   loading,
   adding,
+  updateStatus,
   selectedRepoPath,
   branchMode,
   showStashes,
   onAddRepository,
   onRefresh,
+  onCheckForUpdates,
   onSelectRepository,
+  onRemoveRepository,
+  onReorderRepositories,
   onBranchModeChange,
   onShowStashesChange,
 }: RepoSidebarProps) {
-  const worktreeCount = snapshots.reduce(
-    (count, snapshot) => count + snapshot.worktrees.length,
-    0,
+  const [repoFilter, setRepoFilter] = useState("");
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
   );
-  const branchCount = snapshots.reduce(
-    (count, snapshot) => count + snapshot.localBranches.length,
-    0,
-  );
+  const normalizedRepoFilter = repoFilter.trim().toLowerCase();
+  const visibleSnapshots = useMemo(() => {
+    if (!normalizedRepoFilter) return snapshots;
+    return snapshots.filter((snapshot) =>
+      `${snapshot.repo.displayName}\n${snapshot.repo.path}`.toLowerCase().includes(
+        normalizedRepoFilter,
+      ),
+    );
+  }, [normalizedRepoFilter, snapshots]);
+  const visibleRepoPaths = visibleSnapshots.map((snapshot) => snapshot.repo.path);
+
+  function handleRepositoryDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    onReorderRepositories(String(active.id), String(over.id));
+  }
 
   return (
     <aside className="sidebar">
@@ -45,9 +93,24 @@ export function RepoSidebar({
           <p className="eyebrow">Git Workscene</p>
           <h1>Workspace Map</h1>
         </div>
-        <button title="Refresh" onClick={onRefresh} disabled={loading}>
-          <RefreshCw size={16} />
-        </button>
+        <div className="brand-actions">
+          <button
+            title="Check for updates"
+            aria-label="Check for updates"
+            className={updateStatus === "available" ? "has-update" : ""}
+            onClick={onCheckForUpdates}
+            disabled={updateStatus === "checking" || updateStatus === "installing"}
+          >
+            {updateStatus === "checking" || updateStatus === "installing" ? (
+              <LoaderCircle className="loading-icon" size={16} />
+            ) : (
+              <Bell size={16} />
+            )}
+          </button>
+          <button title="Refresh" onClick={onRefresh} disabled={loading}>
+            <RefreshCw size={16} />
+          </button>
+        </div>
       </header>
 
       <button
@@ -62,18 +125,12 @@ export function RepoSidebar({
 
       <div className="search-shell">
         <Search size={15} />
-        <input placeholder="Filter repos" />
-      </div>
-
-      <nav className="nav-groups">
-        <Group label="Repositories" value={snapshots.length} />
-        <Group label="Worktrees" value={worktreeCount} />
-        <Group label="Branches" value={branchCount} />
-        <Group
-          label="Stashes"
-          value={snapshots.reduce((count, snapshot) => count + snapshot.stashes.length, 0)}
+        <input
+          placeholder="Filter repos"
+          value={repoFilter}
+          onChange={(event) => setRepoFilter(event.currentTarget.value)}
         />
-      </nav>
+      </div>
 
       <section className="view-controls" aria-label="Graph view controls">
         <div className="view-control-row">
@@ -110,30 +167,80 @@ export function RepoSidebar({
       </section>
 
       <div className="repo-list">
-        {snapshots.map((snapshot) => (
-          <button
-            key={snapshot.repo.path}
-            className={`repo-row ${selectedRepoPath === snapshot.repo.path ? "is-active" : ""}`}
-            onClick={() => onSelectRepository(snapshot.repo.path)}
-          >
-            <strong>{snapshot.repo.displayName}</strong>
-            <span>{snapshot.repo.path}</span>
-            <div>
-              <b>{snapshot.worktrees.length}</b> worktrees
-              <b>{snapshot.localBranches.length}</b> branches
-            </div>
-          </button>
-        ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleRepositoryDragEnd}
+        >
+          <SortableContext items={visibleRepoPaths} strategy={verticalListSortingStrategy}>
+            {visibleSnapshots.map((snapshot) => (
+              <SortableRepositoryRow
+                key={snapshot.repo.path}
+                snapshot={snapshot}
+                selected={selectedRepoPath === snapshot.repo.path}
+                onSelectRepository={onSelectRepository}
+                onRemoveRepository={onRemoveRepository}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+        {repoFilter && !visibleSnapshots.length ? (
+          <p className="repo-empty">No matching repositories</p>
+        ) : null}
       </div>
     </aside>
   );
 }
 
-function Group({ label, value }: { label: string; value: number }) {
+function SortableRepositoryRow({
+  snapshot,
+  selected,
+  onSelectRepository,
+  onRemoveRepository,
+}: {
+  snapshot: RepositorySnapshot;
+  selected: boolean;
+  onSelectRepository: (path: string) => void;
+  onRemoveRepository: (path: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: snapshot.repo.path,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  } as CSSProperties;
+
   return (
-    <div className="nav-group">
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div
+      ref={setNodeRef}
+      className={["repo-row", selected ? "is-active" : "", isDragging ? "is-dragging" : ""]
+        .filter(Boolean)
+        .join(" ")}
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
+      <button
+        className="repo-select"
+        aria-label={`Select ${snapshot.repo.displayName}`}
+        onClick={() => onSelectRepository(snapshot.repo.path)}
+      >
+        <strong>{snapshot.repo.displayName}</strong>
+        <span>{snapshot.repo.path}</span>
+        <div>
+          <b>{snapshot.worktrees.length}</b> worktrees
+          <b>{snapshot.localBranches.length}</b> branches
+        </div>
+      </button>
+      <button
+        className="repo-remove"
+        title="Remove repository"
+        aria-label={`Remove ${snapshot.repo.displayName}`}
+        onClick={() => onRemoveRepository(snapshot.repo.path)}
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   );
 }

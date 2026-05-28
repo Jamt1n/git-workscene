@@ -22,9 +22,9 @@ describe("api wrappers", () => {
     ["scanRepository", () => api.scanRepository("/repo"), "scan_repository", { path: "/repo" }],
     [
       "deleteWorktreePreview",
-      () => api.deleteWorktreePreview("/repo-wt"),
+      () => api.deleteWorktreePreview("/repo", "/repo-wt"),
       "delete_worktree_preview",
-      { worktreePath: "/repo-wt" },
+      { repoPath: "/repo", worktreePath: "/repo-wt" },
     ],
     [
       "deleteBranchPreview",
@@ -34,9 +34,15 @@ describe("api wrappers", () => {
     ],
     [
       "cleanupMergedBranchesPreview",
-      () => api.cleanupMergedBranchesPreview("/repo", "master"),
+      () => api.cleanupMergedBranchesPreview("/repo"),
       "cleanup_merged_branches_preview",
-      { repoPath: "/repo", targetBranch: "master" },
+      { repoPath: "/repo" },
+    ],
+    [
+      "branchesOutsideTargetsPreview",
+      () => api.branchesOutsideTargetsPreview("/repo"),
+      "branches_outside_targets_preview",
+      { repoPath: "/repo" },
     ],
     [
       "createWorktree",
@@ -51,9 +57,9 @@ describe("api wrappers", () => {
     ],
     [
       "deleteWorktree",
-      () => api.deleteWorktree("/repo-wt", true),
+      () => api.deleteWorktree("/repo", "/repo-wt", true),
       "delete_worktree",
-      { worktreePath: "/repo-wt", force: true },
+      { repoPath: "/repo", worktreePath: "/repo-wt", force: true },
     ],
     [
       "deleteBranch",
@@ -62,10 +68,46 @@ describe("api wrappers", () => {
       { repoPath: "/repo", branch: "feature/demo", force: true },
     ],
     [
+      "checkoutBranch",
+      () => api.checkoutBranch("/repo", "feature/demo"),
+      "checkout_branch",
+      { repoPath: "/repo", branch: "feature/demo" },
+    ],
+    [
+      "fastForwardBranch",
+      () => api.fastForwardBranch("/repo", "feature/demo"),
+      "fast_forward_branch",
+      { repoPath: "/repo", branch: "feature/demo" },
+    ],
+    [
       "cleanupMergedBranches",
-      () => api.cleanupMergedBranches("/repo", "prerelease"),
+      () => api.cleanupMergedBranches("/repo"),
       "cleanup_merged_branches",
-      { repoPath: "/repo", targetBranch: "prerelease" },
+      { repoPath: "/repo" },
+    ],
+    [
+      "cleanupSelectedMergedBranches",
+      () => api.cleanupSelectedMergedBranches("/repo", ["cleanup/old"]),
+      "cleanup_selected_merged_branches",
+      { repoPath: "/repo", branches: ["cleanup/old"] },
+    ],
+    [
+      "deleteSelectedBranches",
+      () => api.deleteSelectedBranches("/repo", ["feature/outside"], true),
+      "delete_selected_branches",
+      { repoPath: "/repo", branches: ["feature/outside"], force: true },
+    ],
+    [
+      "listBranchCommits",
+      () => api.listBranchCommits("/repo", "feature/demo", 30, 30),
+      "list_branch_commits",
+      { repoPath: "/repo", branch: "feature/demo", offset: 30, limit: 30 },
+    ],
+    [
+      "listWorktreeChanges",
+      () => api.listWorktreeChanges("/repo-feature"),
+      "list_worktree_changes",
+      { worktreePath: "/repo-feature" },
     ],
     ["fetchRepository", () => api.fetchRepository("/repo"), "fetch_repository", { repoPath: "/repo" }],
     ["pullWorktree", () => api.pullWorktree("/repo"), "pull_worktree", { worktreePath: "/repo" }],

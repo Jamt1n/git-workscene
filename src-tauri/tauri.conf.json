@@ -27,6 +27,8 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
+    "shortDescription": "Visual Git branch and worktree manager",
+    "longDescription": "Git Workscene helps developers see and manage local Git repositories, branches, worktrees, stashes, and working tree changes in a single visual workspace.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -34,5 +36,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZGQ0EwQkFCQkY4RTQwMzYKUldRMlFJNi9xd3ZLYnhhQklDRTFUdkZ4OFpNMUhLaEFteVJVVUx6VGVJazVaYmhnM1Zndlkxb0YK",
+      "endpoints": [
+        "https://github.com/Jamt1n/git-workscene/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

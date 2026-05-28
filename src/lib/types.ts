@@ -25,6 +25,28 @@ export interface CommitSummary {
   relativeTime: string;
 }
 
+export interface CommitListItem {
+  sha: string;
+  shortSha: string;
+  subject: string;
+  authorName: string;
+  committedAt: string;
+  relativeTime: string;
+}
+
+export interface CommitPage {
+  commits: CommitListItem[];
+  hasMore: boolean;
+}
+
+export interface FileChangeItem {
+  path: string;
+  previousPath: string | null;
+  indexStatus: string;
+  worktreeStatus: string;
+  status: string;
+}
+
 export interface WorktreeSnapshot {
   path: string;
   branch: string | null;
@@ -59,6 +81,7 @@ export interface StashSnapshot {
 
 export interface RepositorySnapshot {
   repo: RepositoryRecord;
+  defaultBranch: string | null;
   worktrees: WorktreeSnapshot[];
   localBranches: BranchSnapshot[];
   remoteBranches: BranchSnapshot[];

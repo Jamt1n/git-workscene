@@ -12,6 +12,7 @@ export function snapshotFixture(): RepositorySnapshot {
       pinned: false,
       archived: false,
     },
+    defaultBranch: "main",
     worktrees: [
       {
         path: "/tmp/repo-feature",

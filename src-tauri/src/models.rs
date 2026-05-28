@@ -66,6 +66,34 @@ pub struct CommitSummary {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CommitListItem {
+    pub sha: String,
+    pub short_sha: String,
+    pub subject: String,
+    pub author_name: String,
+    pub committed_at: String,
+    pub relative_time: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommitPage {
+    pub commits: Vec<CommitListItem>,
+    pub has_more: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileChangeItem {
+    pub path: String,
+    pub previous_path: Option<String>,
+    pub index_status: String,
+    pub worktree_status: String,
+    pub status: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorktreeSnapshot {
     pub path: String,
     pub branch: Option<String>,
@@ -106,6 +134,7 @@ pub struct StashSnapshot {
 #[serde(rename_all = "camelCase")]
 pub struct RepositorySnapshot {
     pub repo: RepositoryRecord,
+    pub default_branch: Option<String>,
     pub worktrees: Vec<WorktreeSnapshot>,
     pub local_branches: Vec<BranchSnapshot>,
     pub remote_branches: Vec<BranchSnapshot>,
@@ -117,6 +146,7 @@ impl RepositorySnapshot {
     pub fn failed(repo: RepositoryRecord, error: String) -> Self {
         Self {
             repo,
+            default_branch: None,
             worktrees: Vec::new(),
             local_branches: Vec::new(),
             remote_branches: Vec::new(),
