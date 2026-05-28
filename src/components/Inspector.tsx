@@ -131,7 +131,15 @@ export function Inspector({
   const dirtyCount = Number(data?.dirtyCount ?? 0);
   const commitKey =
     data?.kind === "branch" && data.branch
-      ? `${data.repoPath}\0${data.branch}\0${data.upstream ?? ""}`
+      ? [
+          data.repoPath,
+          data.branch,
+          data.upstream ?? "",
+          data.ahead ?? 0,
+          data.behind ?? 0,
+          data.lastCommitSha ?? "",
+          data.upstreamTipSha ?? "",
+        ].join("\0")
       : "";
   const changesKeyRef = useRef(changesKey);
   const changesLoadingKeyRef = useRef<string | null>(null);
@@ -328,7 +336,7 @@ export function Inspector({
       ? "Fetched remote refs; local branch is unchanged"
       : "Fetched remote refs";
   const commitInsight =
-    data?.kind === "branch" && data.branch
+    data?.kind === "branch" && data.branch && (commitRows.length || !commitLoading)
       ? summarizeCommitInsight(data, commitRows, hasMoreCommits)
       : null;
 

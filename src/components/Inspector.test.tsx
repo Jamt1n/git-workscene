@@ -686,6 +686,117 @@ describe("Inspector", () => {
     );
   });
 
+  it("does not show divergence while commit comparison is still loading", async () => {
+    const commits = deferred<{
+      commits: Array<{
+        sha: string;
+        shortSha: string;
+        subject: string;
+        authorName: string;
+        committedAt: string;
+        relativeTime: string;
+      }>;
+      hasMore: boolean;
+    }>();
+    handlers.onLoadBranchCommits.mockReturnValue(commits.promise);
+
+    render(
+      <Inspector
+        selectedNode={upstreamBranchNode()}
+        preview={null}
+        {...handlers}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(handlers.onLoadBranchCommits).toHaveBeenCalledTimes(2);
+    });
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.queryByText("Commit divergence")).not.toBeInTheDocument();
+    expect(document.querySelector(".commit-summary-attention")).not.toBeInTheDocument();
+
+    commits.resolve({
+      commits: [
+        {
+          sha: "same-sha",
+          shortSha: "same",
+          subject: "same tip",
+          authorName: "Ava",
+          committedAt: "100",
+          relativeTime: "now",
+        },
+      ],
+      hasMore: false,
+    });
+
+    expect(await screen.findByText("In sync")).toBeInTheDocument();
+  });
+
+  it("reloads commit comparison when refreshed tracking metadata changes", async () => {
+    let phase: "before" | "after" = "before";
+    handlers.onLoadBranchCommits.mockImplementation(
+      async (_repoPath: string, branch: string) => {
+        const remote = branch.startsWith("origin/");
+        const sha = phase === "before" && !remote ? "local-before" : "remote-tip";
+        return {
+          commits: [
+            {
+              sha,
+              shortSha: sha,
+              subject: phase === "before" && !remote ? "old local tip" : "updated tip",
+              authorName: "Ava",
+              committedAt: "100",
+              relativeTime: "now",
+            },
+          ],
+          hasMore: false,
+        };
+      },
+    );
+    const initialNode = behindUpstreamBranchNode();
+    initialNode.data = {
+      ...initialNode.data,
+      lastCommitSha: "local-before",
+      upstreamTipSha: "remote-tip",
+    };
+    const { rerender } = render(
+      <Inspector
+        selectedNode={initialNode}
+        preview={null}
+        {...handlers}
+      />,
+    );
+
+    expect(await screen.findByText("old local tip")).toBeInTheDocument();
+    expect(screen.getByText("updated tip")).toBeInTheDocument();
+    expect(screen.getByText("old local tip").closest(".commit-compare-row")).toHaveClass(
+      "is-mismatch",
+    );
+
+    phase = "after";
+    const refreshedNode = behindUpstreamBranchNode();
+    refreshedNode.data = {
+      ...refreshedNode.data,
+      ahead: 0,
+      behind: 0,
+      lastCommitSha: "remote-tip",
+      upstreamTipSha: "remote-tip",
+    };
+    rerender(
+      <Inspector
+        selectedNode={refreshedNode}
+        preview={null}
+        {...handlers}
+      />,
+    );
+
+    expect(await screen.findByText("In sync")).toBeInTheDocument();
+    expect(screen.getByText("Local history matches origin/feature/demo.")).toBeInTheDocument();
+    expect(screen.queryByText("old local tip")).not.toBeInTheDocument();
+    expect(document.querySelector(".commit-compare-row")).not.toBeInTheDocument();
+    expect(handlers.onLoadBranchCommits).toHaveBeenCalledTimes(4);
+  });
+
   it("explains that a behind branch needs a local update after fetch", async () => {
     handlers.onLoadBranchCommits.mockImplementation(
       async (_repoPath: string, branch: string) => ({

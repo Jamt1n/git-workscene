@@ -31,6 +31,8 @@ export interface GitNodeData extends Record<string, unknown> {
   isMainWorktree?: boolean;
   ahead?: number;
   behind?: number;
+  lastCommitSha?: string;
+  upstreamTipSha?: string;
   dirtyCount?: number;
   diagnostics?: string[];
 }
@@ -120,6 +122,9 @@ export function buildGraph(
         .filter((worktree) => worktree.branch)
         .map((worktree) => [worktree.branch, worktree] as const),
     );
+    const remoteBranchByName = new Map(
+      snapshot.remoteBranches.map((branch) => [branch.name, branch] as const),
+    );
     const hiddenBranchCount = snapshot.localBranches.length - localBranches.length;
     const repoId = repoNodeId(snapshot.repo.path);
     nodes.push({
@@ -171,7 +176,10 @@ export function buildGraph(
     localBranches.forEach((branch, index) => {
       const nodeId = branchNodeId(snapshot.repo.path, branch.name);
       const worktree = worktreeByBranch.get(branch.name);
-      nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, worktree));
+      const upstreamBranch = branch.upstream
+        ? remoteBranchByName.get(branch.upstream)
+        : undefined;
+      nodes.push(branchNode(snapshot.repo.path, branch, index, baseY, worktree, upstreamBranch));
 
       if (worktree) {
         edges.push({
@@ -279,6 +287,7 @@ function branchNode(
   index: number,
   baseY: number,
   worktree?: WorktreeSnapshot,
+  upstreamBranch?: BranchSnapshot,
 ): GitFlowNode {
   const column = Math.floor(index / branchRowsPerColumn);
   const row = index % branchRowsPerColumn;
@@ -305,6 +314,8 @@ function branchNode(
       isActive: Boolean(branch.worktreePath),
       ahead: branch.ahead,
       behind: branch.behind,
+      lastCommitSha: branch.lastCommit?.sha,
+      upstreamTipSha: upstreamBranch?.lastCommit?.sha,
       dirtyCount: worktree ? dirtyTotal(worktree.dirtySummary) : 0,
     },
   };

@@ -1,6 +1,6 @@
 [package]
 name = "git-workscene"
-version = "0.1.1"
+version = "0.1.2"
 description = "A visual desktop workspace for local Git branches and worktrees"
 authors = ["jamtinlu"]
 edition = "2021"

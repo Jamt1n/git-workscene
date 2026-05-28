@@ -1,7 +1,7 @@
 {
   "name": "git-workscene",
   "description": "A visual desktop workspace for local Git branches and worktrees.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "type": "module",
   "homepage": "https://github.com/Jamt1n/git-workscene#readme",

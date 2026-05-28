@@ -50,6 +50,12 @@ Current release assets include:
 - Linux AppImage, Debian, and RPM packages
 - Tauri updater metadata and signatures
 
+If macOS blocks the app after installation, remove the quarantine attribute:
+
+```bash
+sudo xattr -dr com.apple.quarantine /Applications/Git\ Workscene.app
+```
+
 ## Development
 
 Requirements:
