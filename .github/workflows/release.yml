@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install Linux Tauri dependencies
         if: matrix.platform == 'ubuntu-22.04'
